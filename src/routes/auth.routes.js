@@ -5,37 +5,44 @@
  *
  * Public endpoints (no token required):
  *   POST /register                  — Create a new user account
- *   POST /verify-email              — Verify email with Redis token
- *   POST /resend-verification-email — Request a new verification email
+ *   POST /verify-email              — Verify email with OTP
+ *   POST /resend-verification-email — Request a new OTP
  *   POST /login                     — Authenticate and receive tokens
- *   POST /refresh-token             — Rotate access token (reads cookie)
+ *   POST /refresh-token             — Rotate access token (reads HttpOnly cookie)
  *   POST /forgot-password           — Send password reset email
- *   POST /reset-password            — Reset password with Redis token
+ *   POST /reset-password            — Reset password with hex token
  *
  * Protected endpoints (require Authorization: Bearer <access_token>):
- *   POST /logout                    — Revoke access + refresh tokens
- *   POST /change-password           — Change password while logged in
+ *   POST   /logout                  — Revoke access + refresh tokens
+ *   POST   /change-password         — Change password while logged in
+ *   GET    /sessions                — List active sessions (refresh token JTIs)
+ *   DELETE /sessions/:jti           — Revoke a specific session
+ *   DELETE /sessions                — Revoke all sessions (log out everywhere)
  *
- * Token strategy:
- *   Access tokens  — 15 min JWT, sent in Authorization header
- *   Refresh tokens — 7 day JWT, stored in HttpOnly cookie
- *   Verify / Reset — 64-char hex, stored in Redis with TTL
+ * Rate limiting:
+ *   authLimiter   — 10 req / 15 min (register, resend, forgot)
+ *   strictLimiter — 5 req / 15 min  (login, verify, reset)
+ *   loginBrute    — locks account after 5 failed login attempts for 15 min
  */
 
 import { Router } from 'express';
 import * as authController from '../controllers/auth.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { rateLimiter } from '../middleware/rateLimiter.middleware.js';
+import { rateLimiter, bruteForceProtection } from '../middleware/rateLimiter.middleware.js';
 import * as authValidator from '../validators/auth.validator.js';
 import { asyncWrapper } from '../utils/asyncWrapper.js';
 
 const router = Router();
 
-// Stricter rate limit for sensitive auth endpoints — 10 req / 15 min per IP
-const authLimiter = rateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
+// Named preset limiters — see rateLimiter.middleware.js for window/max values
+const authLimiter   = rateLimiter('auth');    // 10 req / 15 min
+const strictLimiter = rateLimiter('strict');  // 5 req / 15 min
+// Brute-force protection: locks by IP + email after 5 failed attempts
+const loginBrute    = bruteForceProtection({ maxAttempts: 5, lockoutMs: 15 * 60_000, identifierField: 'email' });
 
 // ─── Public ──────────────────────────────────────────────────────────────────
+
 router.post(
     '/register',
     authLimiter,
@@ -45,6 +52,7 @@ router.post(
 
 router.post(
     '/verify-email',
+    strictLimiter,
     validate(authValidator.verifyEmail),
     asyncWrapper(authController.verifyEmail)
 );
@@ -58,13 +66,15 @@ router.post(
 
 router.post(
     '/login',
-    authLimiter,
+    strictLimiter,
+    loginBrute,  // Check brute-force lockout before hitting the DB
     validate(authValidator.login),
     asyncWrapper(authController.login)
 );
 
 router.post(
     '/refresh-token',
+    strictLimiter,
     asyncWrapper(authController.refreshToken)
     // No body validation — token is read from the HttpOnly cookie
 );
@@ -78,11 +88,13 @@ router.post(
 
 router.post(
     '/reset-password',
+    strictLimiter,
     validate(authValidator.resetPassword),
     asyncWrapper(authController.resetPassword)
 );
 
 // ─── Protected (JWT required) ─────────────────────────────────────────────
+
 router.post(
     '/logout',
     authenticate,
@@ -96,18 +108,16 @@ router.post(
     asyncWrapper(authController.changePassword)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Session management
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Session management ───────────────────────────────────────────────────
 
-// list active sessions
+// List all active sessions (refresh token JTIs with remaining TTL)
 router.get(
     '/sessions',
     authenticate,
     asyncWrapper(authController.getSessions)
 );
 
-// revoke one session by JTI
+// Revoke a specific session by its JTI (e.g., log out a specific device)
 router.delete(
     '/sessions/:jti',
     authenticate,
@@ -115,7 +125,7 @@ router.delete(
     asyncWrapper(authController.revokeSession)
 );
 
-// revoke all sessions (log out everywhere)
+// Revoke all sessions — logs the user out on every device
 router.delete(
     '/sessions',
     authenticate,

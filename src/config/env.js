@@ -95,6 +95,12 @@ const envSchema = z.object({
   REST_COUNTRIES_URL: z.string().url().default('https://restcountries.com/v3.1'),
   WORLD_TIME_API_URL: z.string().url().default('https://worldtimeapi.org/api'),
 
+  // IPinfo — IP geolocation for login security (optional token, 50k req/mo free without)
+  IPINFO_TOKEN: z.string().optional().default(''),
+
+  // HaveIBeenPwned — email breach checking (requires paid API key from haveibeenpwned.com)
+  HIBP_API_KEY: z.string().optional().default(''),
+
   // ─── Admin Bootstrap (seed script only) ──────────────────
   ADMIN_EMAIL: z.string().email().default('admin@lexai.io'),
   ADMIN_PASSWORD: z.string().default('Admin112233'),
@@ -111,5 +117,26 @@ if (!parsed.success) {
 
 // Freeze the config to prevent accidental mutation anywhere in the app
 const env = Object.freeze(parsed.data);
+
+// ─── Production Safety Checks ─────────────────────────────────────────────
+// Fail fast if placeholder secrets are used in production
+if (env.NODE_ENV === 'production') {
+    const PLACEHOLDER_PATTERNS = [
+        'change-me',
+        'your-key-here',
+        'secret',
+        'Admin112233',
+        'admin@lexai.io',
+    ];
+
+    const sensitiveKeys = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'OPENROUTER_API_KEY'];
+    for (const key of sensitiveKeys) {
+        const val = env[key] || '';
+        if (PLACEHOLDER_PATTERNS.some(p => val.toLowerCase().includes(p.toLowerCase()))) {
+            console.error(`❌ SECURITY: ${key} appears to be a placeholder value. Set a real secret before running in production.`);
+            process.exit(1);
+        }
+    }
+}
 
 export default env;

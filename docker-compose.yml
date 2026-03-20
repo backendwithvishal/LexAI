@@ -8,25 +8,75 @@ services:
     ports:
       - "3100:3100"
     environment:
-      NODE_ENV: development
-      PORT: 3100
+      # ── App ──
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+      API_VERSION: ${API_VERSION}
+
+      # ── MongoDB (uses service name, not localhost) ──
       MONGO_URI: mongodb://mongodb:27017/lexai
+
+      # ── Redis (uses service name, no password since REDIS_PASSWORD is empty) ──
       REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # ── RabbitMQ (uses service name) ──
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      ANALYSIS_QUEUE: ${ANALYSIS_QUEUE}
+      ALERT_QUEUE: ${ALERT_QUEUE}
+      DLX_EXCHANGE: ${DLX_EXCHANGE}
+
+      # ── JWT ──
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY}
+      JWT_REFRESH_COOKIE_MAX_AGE_MS: ${JWT_REFRESH_COOKIE_MAX_AGE_MS}
+
+      # ── OpenRouter AI ──
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL}
+      AI_PRIMARY_MODEL: ${AI_PRIMARY_MODEL}
+      AI_FALLBACK_MODEL: ${AI_FALLBACK_MODEL}
+
+      # ── Rate Limiting ──
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX}
+
+      # ── File Upload ──
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB}
+      ALLOWED_MIME_TYPES: ${ALLOWED_MIME_TYPES}
+
+      # ── CORS ──
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+
+      # ── Email ──
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       EMAIL_FROM: ${EMAIL_FROM}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+
+      # ── External APIs ──
+      REST_COUNTRIES_URL: ${REST_COUNTRIES_URL}
+      WORLD_TIME_API_URL: ${WORLD_TIME_API_URL}
+
+      # ── Redis Token TTLs ──
+      EMAIL_VERIFICATION_EXPIRY: ${EMAIL_VERIFICATION_EXPIRY}
+      PASSWORD_RESET_EXPIRY: ${PASSWORD_RESET_EXPIRY}
+      OTP_EXPIRY: ${OTP_EXPIRY}
+
+      # ── Admin Bootstrap ──
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+
     depends_on:
       mongodb:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
@@ -47,28 +97,53 @@ services:
       dockerfile: Dockerfile.worker
     container_name: lexai-worker
     environment:
-      NODE_ENV: development
+      # ── App ──
+      NODE_ENV: ${NODE_ENV}
+
+      # ── MongoDB (uses service name, not localhost) ──
       MONGO_URI: mongodb://mongodb:27017/lexai
+
+      # ── Redis (uses service name) ──
       REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # ── RabbitMQ (uses service name) ──
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      AI_PRIMARY_MODEL: ${AI_PRIMARY_MODEL}
-      AI_FALLBACK_MODEL: ${AI_FALLBACK_MODEL}
       ANALYSIS_QUEUE: ${ANALYSIS_QUEUE}
       ALERT_QUEUE: ${ALERT_QUEUE}
       DLX_EXCHANGE: ${DLX_EXCHANGE}
+
+      # ── OpenRouter AI ──
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL}
+      AI_PRIMARY_MODEL: ${AI_PRIMARY_MODEL}
+      AI_FALLBACK_MODEL: ${AI_FALLBACK_MODEL}
+
+      # ── JWT ──
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY}
+
+      # ── Email ──
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       EMAIL_FROM: ${EMAIL_FROM}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+
+      # ── Redis Token TTLs ──
+      EMAIL_VERIFICATION_EXPIRY: ${EMAIL_VERIFICATION_EXPIRY}
+      PASSWORD_RESET_EXPIRY: ${PASSWORD_RESET_EXPIRY}
+      OTP_EXPIRY: ${OTP_EXPIRY}
+
     depends_on:
       mongodb:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
@@ -81,33 +156,45 @@ services:
     image: mongo:7.0
     container_name: lexai-mongodb
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
       - lexai-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
 
   # ─── Redis ────────────────────────────────────────────────────
   redis:
     image: redis:7.2-alpine
     container_name: lexai-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     networks:
       - lexai-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
 
   # ─── RabbitMQ ─────────────────────────────────────────────────
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: lexai-rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest

@@ -1,0 +1,47 @@
+{
+  "scan": {
+    "rootDirectory": ".",
+    "includePatterns": ["**/*.js", "**/*.ts"],
+    "excludePatterns": [
+      "node_modules/**",
+      ".git/**",
+      "dist/**",
+      "build/**",
+      "coverage/**",
+      "*.test.js",
+      "*.spec.js"
+    ],
+    "fileExtensions": [".js", ".ts"]
+  },
+  "checks": {
+    "incompleteFunctions": true,
+    "todoMarkers": true,
+    "edgeCases": true,
+    "logicErrors": true,
+    "variableValidation": true,
+    "dataFlowValidation": true,
+    "apiValidation": true
+  },
+  "severity": {
+    "syntaxError": "CRITICAL",
+    "missingErrorHandling": "HIGH",
+    "incompleteFunctions": "HIGH",
+    "todoMarkers": "MEDIUM",
+    "unusedVariables": "LOW",
+    "unreachableCode": "MEDIUM",
+    "invalidQuery": "HIGH",
+    "missingValidation": "HIGH"
+  },
+  "output": {
+    "directory": "./audit-results",
+    "formats": ["json", "markdown", "html"],
+    "generatePostman": true
+  },
+  "database": {
+    "modelPatterns": ["**/models/**/*.js", "**/schemas/**/*.js"]
+  },
+  "api": {
+    "routePatterns": ["**/routes/**/*.js", "**/controllers/**/*.js"],
+    "baseUrl": "http://localhost:3000"
+  }
+}

@@ -53,8 +53,12 @@ async function startServer() {
         startExpiryCron();
 
         // 10. Start listening
-        const PORT = env.PORT || 3000;
-        server.listen(PORT, () => {
+        // FIXED: bind to 0.0.0.0 so Docker can route traffic from host to container
+        // Without this, Node defaults to 127.0.0.1 (container-only) and port mapping doesn't work
+        const PORT = env.PORT || 3100;
+        const HOST = '0.0.0.0';
+
+        server.listen(PORT, HOST, () => {
             logger.info(`🚀 LexAI API server running on port ${PORT}`);
             logger.info(`   Health: http://localhost:${PORT}/health`);
             logger.info(`   API:    http://localhost:${PORT}/api/${env.API_VERSION}`);

@@ -112,7 +112,7 @@ export async function requestAnalysis({ contractId, orgId, userId, version }) {
         queuedAt: new Date().toISOString(),
     };
 
-    publishToQueue(ANALYSIS_QUEUE, jobPayload);
+    await publishToQueue(ANALYSIS_QUEUE, jobPayload);
     logger.info('Analysis job queued', { jobId, contractId, analysisId: analysis._id });
 
     // Audit trail

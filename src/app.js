@@ -17,11 +17,12 @@ import helmet from 'helmet';
 import cors from 'cors';
 import mongoSanitize from 'express-mongo-sanitize';
 import cookieParser from 'cookie-parser';
+import hpp from 'hpp';
 
 import routes from './routes/index.js';
 import healthRoutes from './routes/health.routes.js';
 import { rateLimiter } from './middleware/rateLimiter.middleware.js';
-import { xssSanitizer } from './middleware/sanitize.middleware.js';
+import { xssSanitizer, depthLimiter } from './middleware/sanitize.middleware.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { attachRequestId, httpLogger } from './middleware/requestLogger.middleware.js';
 import env from './config/env.js';
@@ -29,36 +30,92 @@ import env from './config/env.js';
 export default function createApp() {
     const app = express();
 
-    // ─── Security Middleware ────────────────────────────────────────
-    app.use(helmet());
+    // Trust first proxy — required for correct IP detection behind Docker/nginx
+    // Without this, req.ip is always the proxy IP, breaking rate limiting
+    app.set('trust proxy', 1);
 
-    const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim());
+    // Disable X-Powered-By header (don't advertise Express)
+    app.disable('x-powered-by');
+
+    // ─── Security Headers (Helmet) ──────────────────────────────────
+    app.use(helmet({
+        // Content Security Policy — restrict resource loading
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", 'data:', 'https:'],
+                connectSrc: ["'self'"],
+                fontSrc: ["'self'"],
+                objectSrc: ["'none'"],
+                mediaSrc: ["'self'"],
+                frameSrc: ["'none'"],
+                upgradeInsecureRequests: env.NODE_ENV === 'production' ? [] : null,
+            },
+        },
+        // HTTP Strict Transport Security — force HTTPS for 1 year in production
+        hsts: env.NODE_ENV === 'production'
+            ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+            : false,
+        // Prevent MIME type sniffing
+        noSniff: true,
+        // Prevent clickjacking
+        frameguard: { action: 'deny' },
+        // Disable DNS prefetching
+        dnsPrefetchControl: { allow: false },
+        // Referrer policy — don't leak URL info
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+        // Disable browser features not needed by this API
+        permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+        crossOriginEmbedderPolicy: false, // API doesn't serve embedded content
+    }));
+
+    // ─── CORS ───────────────────────────────────────────────────────
+    const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
     app.use(cors({
-        origin: allowedOrigins,
+        origin: (origin, callback) => {
+            // Allow requests with no origin (mobile apps, curl, Postman)
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            callback(new Error(`CORS: origin '${origin}' not allowed`));
+        },
         credentials: true,
         methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'],
+        exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+        maxAge: 86400, // Cache preflight for 24h
     }));
 
-    // Prevent NoSQL injection
-    app.use(mongoSanitize());
+    // ─── NoSQL Injection Prevention ─────────────────────────────────
+    // Strips $ and . from keys to prevent MongoDB operator injection
+    app.use(mongoSanitize({ replaceWith: '_' }));
+
+    // ─── HTTP Parameter Pollution Prevention ────────────────────────
+    // Prevents attacks like ?role=user&role=admin
+    app.use(hpp());
 
     // ─── Parsing Middleware ─────────────────────────────────────────
-    app.use(express.json({ limit: '1mb' }));
-    app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+    // Strict 100kb limit for JSON — prevents large payload DoS
+    app.use(express.json({
+        limit: '100kb',
+        strict: true, // Only accept arrays and objects at top level
+    }));
+    app.use(express.urlencoded({ extended: false, limit: '100kb' }));
     app.use(cookieParser());
 
-    // ─── XSS Sanitization ───────────────────────────────────────────
+    // ─── XSS Sanitization + Depth Limiting ─────────────────────────
+    app.use(depthLimiter);
     app.use(xssSanitizer);
 
     // ─── Request Logging ────────────────────────────────────────────
     app.use(attachRequestId);
     app.use(httpLogger);
 
-    // ─── Rate Limiting ──────────────────────────────────────────────
+    // ─── Global Rate Limiting ───────────────────────────────────────
     app.use(rateLimiter());
 
-    // ─── Health Check (unauthenticated) ─────────────────────────────
+    // ─── Health Check (unauthenticated, no rate limit) ──────────────
     app.use('/health', healthRoutes);
 
     // ─── API Routes ─────────────────────────────────────────────────

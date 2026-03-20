@@ -74,7 +74,17 @@ async function processAnalysisJob(job, channel, msg) {
 
     try {
         logger.info(`Processing analysis job: ${jobId}`, { contractId, version });
-        await Analysis.findByIdAndUpdate(analysisId, { status: 'processing' });
+        
+        // Update status to processing
+        const processingUpdate = await Analysis.findByIdAndUpdate(
+            analysisId,
+            { $set: { status: 'processing' } },
+            { new: true, runValidators: true }
+        );
+
+        if (!processingUpdate) {
+            throw new Error(`Analysis document ${analysisId} not found`);
+        }
 
         // Check cache one more time (race condition guard)
         const cached = await redis.get(`analysis:${contentHash}`);
@@ -82,11 +92,23 @@ async function processAnalysisJob(job, channel, msg) {
             logger.info('Cache hit inside worker — skipping AI call', { jobId });
             const cachedResult = JSON.parse(cached);
 
-            await Analysis.findByIdAndUpdate(analysisId, {
+            const updateData = {
                 status: 'completed',
-                ...cachedResult,
+                summary: cachedResult.summary || 'No summary available',
+                riskScore: typeof cachedResult.riskScore === 'number' ? cachedResult.riskScore : 50,
+                riskLevel: cachedResult.riskLevel || 'medium',
                 processingTimeMs: Date.now() - startTime,
-            });
+            };
+
+            const updatedAnalysis = await Analysis.findByIdAndUpdate(
+                analysisId,
+                { $set: updateData },
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedAnalysis) {
+                throw new Error(`Failed to update analysis document ${analysisId} from cache`);
+            }
 
             await publishSocketEvent(redis, orgId, contractId, analysisId, cachedResult.riskScore, cachedResult.riskLevel);
             channel.ack(msg);
@@ -96,20 +118,33 @@ async function processAnalysisJob(job, channel, msg) {
         // Call AI
         const result = await aiService.analyzeContract(content);
 
-        // Save to MongoDB
-        await Analysis.findByIdAndUpdate(analysisId, {
+        // Ensure all required fields have values (defensive programming)
+        const updateData = {
             status: 'completed',
-            summary: result.summary,
-            riskScore: result.riskScore,
-            riskLevel: result.riskLevel,
-            clauses: result.clauses,
-            obligations: result.obligations,
-            keyDates: result.keyDates,
-            aiModel: result.aiModel,
-            tokensUsed: result.tokensUsed,
+            summary: result.summary || 'No summary available',
+            riskScore: typeof result.riskScore === 'number' ? result.riskScore : 50,
+            riskLevel: result.riskLevel || 'medium',
+            clauses: Array.isArray(result.clauses) ? result.clauses : [],
+            obligations: result.obligations || { yourObligations: [], otherPartyObligations: [] },
+            keyDates: result.keyDates || {},
+            aiModel: result.aiModel || 'unknown',
+            tokensUsed: result.tokensUsed || 0,
             processingTimeMs: Date.now() - startTime,
             cacheKey: contentHash,
-        });
+        };
+
+        // Save to MongoDB with explicit update
+        const updatedAnalysis = await Analysis.findByIdAndUpdate(
+            analysisId,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedAnalysis) {
+            throw new Error(`Failed to update analysis document ${analysisId}`);
+        }
+
+        logger.info('Analysis saved to database', { analysisId, riskScore: result.riskScore });
 
         // Update contract with AI-extracted dates
         const dateUpdates = {};
@@ -158,11 +193,21 @@ async function processAnalysisJob(job, channel, msg) {
         } else {
             logger.error(`Job exhausted all ${MAX_RETRIES} retries. Routing to DLX.`, { jobId });
 
-            await Analysis.findByIdAndUpdate(analysisId, {
-                status: 'failed',
-                failureReason: err.message,
-                retryCount: MAX_RETRIES,
-            });
+            const failureUpdate = await Analysis.findByIdAndUpdate(
+                analysisId,
+                {
+                    $set: {
+                        status: 'failed',
+                        failureReason: err.message,
+                        retryCount: MAX_RETRIES,
+                    }
+                },
+                { new: true, runValidators: true }
+            );
+
+            if (!failureUpdate) {
+                logger.error(`Failed to update analysis ${analysisId} to failed status`);
+            }
 
             await redis.publish(PUBSUB_CHANNEL, JSON.stringify({
                 event: 'analysis:failed',

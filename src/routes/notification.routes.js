@@ -1,4 +1,16 @@
-/** Notification Routes — all require authentication. */
+/**
+ * Notification Routes
+ *
+ * Base path: /api/v1/notifications  (mounted in routes/index.js)
+ *
+ * All endpoints require authentication.
+ * Notifications are org-scoped — users only see their org's notifications.
+ *
+ *   GET    /                — List notifications (paginated, filterable by read status)
+ *   GET    /unread-count    — Get unread count for badge display
+ *   PATCH  /read-all        — Mark all notifications as read
+ *   PATCH  /:id/read        — Mark a single notification as read
+ */
 
 import { Router } from 'express';
 import * as notificationController from '../controllers/notification.controller.js';
@@ -11,7 +23,9 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', asyncWrapper(notificationController.listNotifications));
+// unread-count must be declared BEFORE /:id to prevent "unread-count" being matched as an ID
 router.get('/unread-count', asyncWrapper(notificationController.getUnreadCount));
+// Bulk mark-as-read — must be before /:id/read to avoid route conflict
 router.patch('/read-all', asyncWrapper(notificationController.markAllAsRead));
 router.patch('/:id/read', asyncWrapper(notificationController.markAsRead));
 

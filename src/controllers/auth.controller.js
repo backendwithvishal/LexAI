@@ -31,12 +31,25 @@ import {
 import { sendSuccess } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 import * as auditService from '../services/audit.service.js';
+import { getIPInfo, checkDisposableEmail } from '../services/enrichment.service.js';
 import logger from '../utils/logger.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/v1/auth/register
 // ─────────────────────────────────────────────────────────────────────────────
 export async function register(req, res) {
+    const { email } = req.body;
+
+    // Non-blocking disposable email check — warn but don't block registration
+    // (some legitimate users use privacy-focused email services)
+    if (email) {
+        checkDisposableEmail(email).then((result) => {
+            if (result?.disposable) {
+                logger.warn({ email }, 'Registration attempt with disposable email address');
+            }
+        }).catch(() => {}); // fire-and-forget, never block registration
+    }
+
     const result = await registerUser(req.body);
 
     // The service only includes `otp` in development mode.
@@ -91,6 +104,7 @@ export async function login(req, res) {
 
     // Record the login in the audit log. This is fire-and-forget — an audit
     // failure should NEVER cause the login itself to fail.
+    // We also enrich with IP geolocation for security monitoring.
     auditService.log({
         orgId: user.organization,
         userId: user._id,
@@ -102,6 +116,19 @@ export async function login(req, res) {
     }).catch((err) => {
         logger.error({ err: err.message, userId: user._id }, 'Audit log failed on login');
     });
+
+    // Fire-and-forget IP geolocation enrichment — stored separately for security dashboards
+    getIPInfo(req.ip).then((ipData) => {
+        if (ipData) {
+            logger.info({
+                userId: user._id,
+                ip: req.ip,
+                country: ipData.country,
+                city: ipData.city,
+                org: ipData.org,
+            }, 'Login geolocation');
+        }
+    }).catch(() => {});
 
     sendSuccess(res, {
         message: 'Login successful.',

@@ -41,7 +41,7 @@ export async function listNotifications(req, res) {
 
     const meta = buildPaginationMeta(total, parseInt(page), parseInt(limit));
 
-    sendSuccess(res, { notifications, meta });
+    sendSuccess(res, { data: { notifications, meta } });
 }
 
 /**
@@ -77,7 +77,7 @@ export async function markAsRead(req, res) {
         });
     }
 
-    sendSuccess(res, { notification }, 'Notification marked as read.');
+    sendSuccess(res, { message: 'Notification marked as read.', data: { notification } });
 }
 
 /**
@@ -92,5 +92,5 @@ export async function markAllAsRead(req, res) {
         { read: true, readAt: new Date() }
     );
 
-    sendSuccess(res, { modifiedCount: result.modifiedCount }, 'All notifications marked as read.');
+    sendSuccess(res, { message: 'All notifications marked as read.', data: { modifiedCount: result.modifiedCount } });
 }

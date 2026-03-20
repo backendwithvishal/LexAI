@@ -15,6 +15,7 @@ import * as analysisController from '../controllers/analysis.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireOrg } from '../middleware/orgResolver.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
+import { rateLimiter } from '../middleware/rateLimiter.middleware.js';
 import * as analysisValidator from '../validators/analysis.validator.js';
 import { asyncWrapper } from '../utils/asyncWrapper.js';
 
@@ -23,9 +24,10 @@ const router = Router();
 // All analysis routes require authentication + org membership
 router.use(authenticate, requireOrg);
 
-// Request a new AI analysis (or return cached result)
+// Request a new AI analysis — stricter limit (AI calls are expensive)
 router.post(
     '/',
+    rateLimiter('analysis'),
     validate(analysisValidator.requestAnalysis),
     asyncWrapper(analysisController.requestAnalysis)
 );

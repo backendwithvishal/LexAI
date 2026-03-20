@@ -1,6 +1,9 @@
 /**
  * Admin Controller
+ *
  * Platform-wide stats, queue status, and admin-only endpoints.
+ * All routes here are protected by authorize('admin') in the router.
+ * These endpoints are for internal dashboards — not exposed to regular users.
  */
 
 import User from '../models/User.model.js';
@@ -11,24 +14,28 @@ import { getChannel } from '../config/rabbitmq.js';
 import * as auditService from '../services/audit.service.js';
 import { sendSuccess, buildPaginationMeta } from '../utils/apiResponse.js';
 
-/** GET /admin/stats */
+/** GET /admin/stats — platform-wide usage statistics */
 export async function getStats(req, res) {
+    // Run all count queries in parallel for speed
     const [totalUsers, totalOrgs, totalContracts, totalAnalyses] = await Promise.all([
         User.countDocuments(),
         Organization.countDocuments(),
-        Contract.countDocuments({ isDeleted: false }),
+        Contract.countDocuments({ isDeleted: false }),  // Exclude soft-deleted contracts
         Analysis.countDocuments(),
     ]);
 
+    // Last 30 days activity — useful for growth tracking
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const analysesLast30Days = await Analysis.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
 
+    // Average risk score across all completed analyses
     const riskAgg = await Analysis.aggregate([
         { $match: { status: 'completed', riskScore: { $exists: true } } },
         { $group: { _id: null, avg: { $avg: '$riskScore' } } },
     ]);
     const averageRiskScore = riskAgg[0]?.avg ? Math.round(riskAgg[0].avg * 10) / 10 : 0;
 
+    // Check how many jobs are waiting in the RabbitMQ queue
     let queueDepth = 0;
     try {
         const channel = getChannel();
@@ -36,7 +43,7 @@ export async function getStats(req, res) {
             const queueInfo = await channel.checkQueue(process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue');
             queueDepth = queueInfo.messageCount;
         }
-    } catch { /* queue might not exist yet */ }
+    } catch { /* queue might not exist yet on first startup */ }
 
     sendSuccess(res, {
         data: {
@@ -45,7 +52,7 @@ export async function getStats(req, res) {
     });
 }
 
-/** GET /admin/queue/status */
+/** GET /admin/queue/status — RabbitMQ queue health check */
 export async function getQueueStatus(req, res) {
     let analysisQueue = { messageCount: 0, consumerCount: 0 };
     let dlxQueue = { messageCount: 0 };
@@ -54,6 +61,7 @@ export async function getQueueStatus(req, res) {
         const channel = getChannel();
         if (channel) {
             analysisQueue = await channel.checkQueue(process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue');
+            // DLQ (dead letter queue) holds jobs that failed all retries
             try { dlxQueue = await channel.checkQueue('lexai.analysis.dlq'); } catch { /* DLQ might not exist */ }
         }
     } catch { /* RabbitMQ might be disconnected */ }
@@ -64,13 +72,13 @@ export async function getQueueStatus(req, res) {
                 name: process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue',
                 messageCount: analysisQueue.messageCount,
                 consumerCount: analysisQueue.consumerCount,
-                dlxMessageCount: dlxQueue.messageCount,
+                dlxMessageCount: dlxQueue.messageCount,  // Jobs that failed all retries
             },
         },
     });
 }
 
-/** GET /admin/users */
+/** GET /admin/users — paginated list of all users */
 export async function listUsers(req, res) {
     const { page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -85,7 +93,7 @@ export async function listUsers(req, res) {
     });
 }
 
-/** GET /admin/audit-logs */
+/** GET /admin/audit-logs — paginated global audit trail */
 export async function getAuditLogs(req, res) {
     const result = await auditService.getGlobalAuditLogs(req.query);
     sendSuccess(res, {

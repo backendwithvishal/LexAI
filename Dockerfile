@@ -3,15 +3,17 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production
 
-# ─── Production Image ────────────────────────────────────────────
+# FIXED: --only=production is deprecated, use --omit=dev
+RUN npm ci --omit=dev
+
+# ─── Production Image ─────────────────────────────────────────
 FROM node:20-alpine
 
 # Security: create a non-root user to run the application
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Install wget for healthcheck (not present in some alpine images)
+# Install wget for healthcheck
 RUN apk add --no-cache wget
 
 WORKDIR /app
@@ -25,13 +27,10 @@ COPY . .
 # Set ownership to non-root user
 RUN chown -R appuser:appgroup /app
 
-# Switch to non-root user — container compromise no longer gives root access
+# Switch to non-root user
 USER appuser
 
-EXPOSE 3000
-
-# Health check — Docker and orchestrators use this to monitor container health
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:3100/health || exit 1
+# FIXED: was 3000, must match PORT=3100 in .env and docker-compose.yml
+EXPOSE 3100
 
 CMD ["node", "server.js"]
