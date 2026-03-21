@@ -16,12 +16,13 @@ import Organization from '../models/Organization.model.js';
 import User from '../models/User.model.js';
 import Notification from '../models/Notification.model.js';
 import { publishToQueue } from '../config/rabbitmq.js';
+import { QUEUES, PUBSUB_CHANNEL } from '../constants/queues.js';
 import { getPlanLimits } from '../constants/plans.js';
 import { daysUntil } from '../utils/dateHelper.js';
 import * as emailService from './email.service.js';
 import logger from '../utils/logger.js';
 
-const ALERT_QUEUE = process.env.ALERT_QUEUE || 'lexai.alert.queue';
+const ALERT_QUEUE = QUEUES.ALERT;
 
 /**
  * Scan all contracts for upcoming expiry dates and push alert jobs.
@@ -114,7 +115,7 @@ export async function processExpiryAlert(payload, redisClient) {
         payload: { contractId, title, daysUntilExpiry, expiryDate },
     };
 
-    await redisClient.publish('lexai:socket:events', JSON.stringify(socketEvent));
+    await redisClient.publish(PUBSUB_CHANNEL, JSON.stringify(socketEvent));
 
     // Send email alerts to every member in the org
     const memberIds = org.members.map((m) => m.userId);

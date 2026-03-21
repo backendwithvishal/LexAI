@@ -38,6 +38,7 @@ const notificationSchema = new mongoose.Schema(
         message: String,                            // Human-readable notification text
         metadata: mongoose.Schema.Types.Mixed,      // Extra context (expiry date, risk score, etc.)
         read: { type: Boolean, default: false },    // Unread by default — frontend marks as read
+        readAt: Date,                               // When the notification was marked as read
     },
     {
         timestamps: true,

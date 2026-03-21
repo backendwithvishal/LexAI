@@ -10,13 +10,13 @@
 
 import { getChannel } from '../config/rabbitmq.js';
 import { getRedisClient } from '../config/redis.js';
-import { PUBSUB_CHANNEL } from '../constants/queues.js';
+import { PUBSUB_CHANNEL, QUEUES } from '../constants/queues.js';
 import Analysis from '../models/Analysis.model.js';
 import Contract from '../models/Contract.model.js';
 import * as aiService from '../services/ai.service.js';
 import logger from '../utils/logger.js';
 
-const ANALYSIS_QUEUE = process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue';
+const ANALYSIS_QUEUE = QUEUES.ANALYSIS;
 const CACHE_TTL = 86400; // 24 hours
 const MAX_RETRIES = 3;
 const JOB_TIMEOUT_MS = 90000; // 90 seconds — failsafe if AI API hangs
@@ -115,8 +115,8 @@ async function processAnalysisJob(job, channel, msg) {
             return;
         }
 
-        // Call AI
-        const result = await aiService.analyzeContract(content);
+        // Call AI — wrapped with timeout so a hanging API call doesn't block the worker forever
+        const result = await withTimeout(aiService.analyzeContract(content), JOB_TIMEOUT_MS, jobId);
 
         // Ensure all required fields have values (defensive programming)
         const updateData = {

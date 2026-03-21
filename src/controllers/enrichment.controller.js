@@ -45,7 +45,7 @@ export async function getCountryInfo(req, res) {
         });
     }
 
-    sendSuccess(res, { country: data });
+    sendSuccess(res, { data: { country: data } });
 }
 
 // ─── World Time ───────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ export async function getWorldTime(req, res) {
         });
     }
 
-    sendSuccess(res, { time: data });
+    sendSuccess(res, { data: { time: data } });
 }
 
 // ─── Public Holidays ──────────────────────────────────────────────────────────
@@ -103,10 +103,10 @@ export async function checkHoliday(req, res) {
     const data = await enrichmentService.checkHoliday(country, parsedDate);
 
     if (!data) {
-        return sendSuccess(res, { holiday: { isHoliday: false, holidays: [], note: 'Holiday API unavailable' } });
+        return sendSuccess(res, { data: { holiday: { isHoliday: false, holidays: [], note: 'Holiday API unavailable' } } });
     }
 
-    sendSuccess(res, { holiday: data });
+    sendSuccess(res, { data: { holiday: data } });
 }
 
 /**
@@ -140,7 +140,7 @@ export async function getPublicHolidays(req, res) {
         });
     }
 
-    sendSuccess(res, { holidays: data, country: country.toUpperCase(), year: yearNum });
+    sendSuccess(res, { data: { holidays: data, country: country.toUpperCase(), year: yearNum } });
 }
 
 // ─── IP Geolocation ───────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ export async function getIPInfo(req, res) {
         });
     }
 
-    sendSuccess(res, { ipInfo: data });
+    sendSuccess(res, { data: { ipInfo: data } });
 }
 
 // ─── Email Validation ─────────────────────────────────────────────────────────
@@ -197,9 +197,11 @@ export async function validateEmail(req, res) {
     ]);
 
     sendSuccess(res, {
-        email,
-        validation: validation || { note: 'Validation service unavailable' },
-        disposable: disposable || { note: 'Disposable check unavailable' },
+        data: {
+            email,
+            validation: validation || { note: 'Validation service unavailable' },
+            disposable: disposable || { note: 'Disposable check unavailable' },
+        },
     });
 }
 
@@ -220,10 +222,10 @@ export async function getEmailReputation(req, res) {
     const data = await enrichmentService.getEmailReputation(email);
 
     if (!data) {
-        return sendSuccess(res, { email, reputation: { note: 'Reputation service unavailable' } });
+        return sendSuccess(res, { data: { email, reputation: { note: 'Reputation service unavailable' } } });
     }
 
-    sendSuccess(res, { email, reputation: data });
+    sendSuccess(res, { data: { email, reputation: data } });
 }
 
 /**
@@ -244,10 +246,10 @@ export async function checkEmailBreaches(req, res) {
     const data = await enrichmentService.checkEmailBreaches(email);
 
     if (!data) {
-        return sendSuccess(res, { email, breaches: { note: 'Breach check unavailable — HIBP_API_KEY may not be configured.' } });
+        return sendSuccess(res, { data: { email, breaches: { note: 'Breach check unavailable — HIBP_API_KEY may not be configured.' } } });
     }
 
-    sendSuccess(res, { email, breaches: data });
+    sendSuccess(res, { data: { email, breaches: data } });
 }
 
 // ─── Currency Exchange ────────────────────────────────────────────────────────
@@ -282,7 +284,7 @@ export async function getExchangeRate(req, res) {
         });
     }
 
-    sendSuccess(res, { exchange: data });
+    sendSuccess(res, { data: { exchange: data } });
 }
 
 /**
@@ -319,5 +321,5 @@ export async function getExchangeRates(req, res) {
         });
     }
 
-    sendSuccess(res, { exchange: data });
+    sendSuccess(res, { data: { exchange: data } });
 }

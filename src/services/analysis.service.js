@@ -18,11 +18,13 @@ import Contract from '../models/Contract.model.js';
 import { getRedisClient } from '../config/redis.js';
 import { publishToQueue } from '../config/rabbitmq.js';
 import { getCurrentMonthKey, secondsUntilEndOfMonth } from '../utils/dateHelper.js';
+import { QUEUES } from '../constants/queues.js';
 import * as auditService from './audit.service.js';
 import logger from '../utils/logger.js';
 import AppError from '../utils/AppError.js';
 
-const ANALYSIS_QUEUE = process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue';
+// Use the shared constant so queue names are always in sync across the codebase
+const ANALYSIS_QUEUE = QUEUES.ANALYSIS;
 const CACHE_TTL = 86400; // 24 hours — cached results expire after a day
 const LOCK_TTL = 300;    // 5 minutes — lock expires if worker crashes mid-job
 

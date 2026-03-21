@@ -1,5 +1,6 @@
-const EventEmitter = require('events');
-const cliProgress = require('cli-progress');
+// ESM imports — both are default exports from their packages
+import EventEmitter from 'events';
+import cliProgress from 'cli-progress';
 
 /**
  * ProgressReporter - Reports progress during long-running operations
@@ -170,4 +171,5 @@ class ProgressReporter extends EventEmitter {
   }
 }
 
-module.exports = ProgressReporter;
+// Default export — single class, no other exports needed
+export default ProgressReporter;

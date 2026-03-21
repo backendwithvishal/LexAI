@@ -1,7 +1,11 @@
-const babelParser = require('@babel/parser');
-const traverse = require('@babel/traverse').default;
-const t = require('@babel/types');
-const fs = require('fs-extra');
+// babelParser and fs are default exports
+import babelParser from '@babel/parser';
+// @babel/traverse is a CJS package with interop — the actual function is at .default.default
+import _traverseModule from '@babel/traverse';
+const traverse = _traverseModule.default?.default || _traverseModule.default || _traverseModule;
+// namespace import preserves the t.isIdentifier(), t.isArrowFunctionExpression() etc. call pattern
+import * as t from '@babel/types';
+import fs from 'fs-extra';
 
 /**
  * CodeParser - Parses JavaScript/TypeScript files into AST and extracts code elements
@@ -580,4 +584,5 @@ class CodeParser {
   }
 }
 
-module.exports = CodeParser;
+// Default export — single class
+export default CodeParser;

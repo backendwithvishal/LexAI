@@ -24,7 +24,8 @@ export const changePassword = Joi.object({
     currentPassword: Joi.string().required()
         .messages({ 'any.required': 'Current password is required' }),
     newPassword: Joi.string().min(8).max(128).required()
-        .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/)
+        // Same pattern as auth.validator.js — passwords accepted at signup must also pass here
+        .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,\-_#^()])[^\s]+$/)
         .messages({
             'any.required': 'New password is required',
             'string.min': 'New password must be at least 8 characters',

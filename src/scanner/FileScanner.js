@@ -1,7 +1,8 @@
-const fastGlob = require('fast-glob');
-const ignore = require('ignore');
-const fs = require('fs-extra');
-const path = require('path');
+// ESM imports — all default exports from their packages
+import fastGlob from 'fast-glob';
+import ignore from 'ignore';
+import fs from 'fs-extra';
+import path from 'path';
 
 /**
  * FileScanner - Discovers and catalogs all files in the codebase
@@ -159,4 +160,5 @@ class FileScanner {
   }
 }
 
-module.exports = FileScanner;
+// Default export — single class
+export default FileScanner;

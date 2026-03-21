@@ -1,6 +1,11 @@
-const { ConfigurationManager, ConfigurationError } = require('../../src/core/ConfigurationManager');
-const fs = require('fs-extra');
-const path = require('path');
+import { ConfigurationManager, ConfigurationError } from '../../src/core/ConfigurationManager.js';
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ESM doesn't have __dirname — derive it from import.meta.url
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('ConfigurationManager', () => {
   let configManager;

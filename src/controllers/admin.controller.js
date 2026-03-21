@@ -11,6 +11,7 @@ import Organization from '../models/Organization.model.js';
 import Contract from '../models/Contract.model.js';
 import Analysis from '../models/Analysis.model.js';
 import { getChannel } from '../config/rabbitmq.js';
+import { QUEUES } from '../constants/queues.js';
 import * as auditService from '../services/audit.service.js';
 import { sendSuccess, buildPaginationMeta } from '../utils/apiResponse.js';
 
@@ -40,7 +41,7 @@ export async function getStats(req, res) {
     try {
         const channel = getChannel();
         if (channel) {
-            const queueInfo = await channel.checkQueue(process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue');
+            const queueInfo = await channel.checkQueue(QUEUES.ANALYSIS);
             queueDepth = queueInfo.messageCount;
         }
     } catch { /* queue might not exist yet on first startup */ }
@@ -60,16 +61,16 @@ export async function getQueueStatus(req, res) {
     try {
         const channel = getChannel();
         if (channel) {
-            analysisQueue = await channel.checkQueue(process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue');
+            analysisQueue = await channel.checkQueue(QUEUES.ANALYSIS);
             // DLQ (dead letter queue) holds jobs that failed all retries
-            try { dlxQueue = await channel.checkQueue('lexai.analysis.dlq'); } catch { /* DLQ might not exist */ }
+            try { dlxQueue = await channel.checkQueue(QUEUES.DLQ_ANALYSIS); } catch { /* DLQ might not exist */ }
         }
     } catch { /* RabbitMQ might be disconnected */ }
 
     sendSuccess(res, {
         data: {
             queue: {
-                name: process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue',
+                name: QUEUES.ANALYSIS,
                 messageCount: analysisQueue.messageCount,
                 consumerCount: analysisQueue.consumerCount,
                 dlxMessageCount: dlxQueue.messageCount,  // Jobs that failed all retries

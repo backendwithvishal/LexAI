@@ -1,4 +1,4 @@
-const ProgressReporter = require('../../../src/core/ProgressReporter');
+import ProgressReporter from '../../../src/core/ProgressReporter.js';
 
 describe('ProgressReporter', () => {
   let reporter;

@@ -3,9 +3,8 @@
  * Main entry point for programmatic API
  */
 
-const { ConfigurationManager, ConfigurationError } = require('./core/ConfigurationManager');
+// ESM import — explicit .js extension required in ESM projects
+import { ConfigurationManager, ConfigurationError } from './core/ConfigurationManager.js';
 
-module.exports = {
-  ConfigurationManager,
-  ConfigurationError
-};
+// Re-export both classes so callers can import them from this entry point
+export { ConfigurationManager, ConfigurationError };

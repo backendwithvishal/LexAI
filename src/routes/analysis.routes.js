@@ -16,6 +16,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import { requireOrg } from '../middleware/orgResolver.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { rateLimiter } from '../middleware/rateLimiter.middleware.js';
+import { checkQuota } from '../middleware/quota.middleware.js';
 import * as analysisValidator from '../validators/analysis.validator.js';
 import { asyncWrapper } from '../utils/asyncWrapper.js';
 
@@ -25,9 +26,11 @@ const router = Router();
 router.use(authenticate, requireOrg);
 
 // Request a new AI analysis — stricter limit (AI calls are expensive)
+// checkQuota runs before the job is queued to enforce monthly plan limits
 router.post(
     '/',
     rateLimiter('analysis'),
+    checkQuota,
     validate(analysisValidator.requestAnalysis),
     asyncWrapper(analysisController.requestAnalysis)
 );

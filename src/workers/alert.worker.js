@@ -7,10 +7,11 @@
 
 import { getChannel } from '../config/rabbitmq.js';
 import { getRedisClient } from '../config/redis.js';
+import { QUEUES } from '../constants/queues.js';
 import * as alertService from '../services/alert.service.js';
 import logger from '../utils/logger.js';
 
-const ALERT_QUEUE = process.env.ALERT_QUEUE || 'lexai.alert.queue';
+const ALERT_QUEUE = QUEUES.ALERT;
 
 /** Start consuming alert jobs from the queue. */
 export async function startAlertWorker() {

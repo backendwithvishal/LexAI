@@ -1,7 +1,7 @@
-const FileScanner = require('../../../src/scanner/FileScanner');
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
+import FileScanner from '../../../src/scanner/FileScanner.js';
+import fs from 'fs-extra';
+import path from 'path';
+import os from 'os';
 
 describe('FileScanner', () => {
   let scanner;

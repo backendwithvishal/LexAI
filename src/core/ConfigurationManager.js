@@ -1,6 +1,7 @@
-const fs = require('fs-extra');
-const path = require('path');
-const Ajv = require('ajv');
+// ESM imports — default imports for these CommonJS-style packages
+import fs from 'fs-extra';
+import path from 'path';
+import Ajv from 'ajv';
 
 /**
  * ConfigurationError - Custom error for configuration issues
@@ -244,4 +245,5 @@ class ConfigurationManager {
   }
 }
 
-module.exports = { ConfigurationManager, ConfigurationError };
+// Named exports — both classes are needed by src/index.js
+export { ConfigurationManager, ConfigurationError };

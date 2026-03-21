@@ -1,6 +1,6 @@
-const CodeParser = require('../../../src/parser/CodeParser');
-const path = require('path');
-const fs = require('fs-extra');
+import CodeParser from '../../../src/parser/CodeParser.js';
+import path from 'path';
+import fs from 'fs-extra';
 
 describe('CodeParser', () => {
   let parser;

@@ -13,6 +13,7 @@ import Organization from '../models/Organization.model.js';
 import { getPlanLimits } from '../constants/plans.js';
 import { publishToQueue } from '../config/rabbitmq.js';
 import { v4 as uuidv4 } from 'uuid';
+import { QUEUES } from '../constants/queues.js';
 import logger from '../utils/logger.js';
 import AppError from '../utils/AppError.js';
 
@@ -89,7 +90,7 @@ export async function compareVersions({ contractId, orgId, userId, versionA, ver
 
     // Queue AI explanation job — result will arrive via Socket.io
     const jobId = uuidv4();
-    publishToQueue(process.env.ANALYSIS_QUEUE || 'lexai.analysis.queue', {
+    publishToQueue(QUEUES.ANALYSIS, {
         jobId,
         type: 'diff', // Worker uses this to route to diff handler instead of analysis handler
         contractId: contractId.toString(),
