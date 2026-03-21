@@ -156,7 +156,7 @@ services:
     image: mongo:7.0
     container_name: lexai-mongodb
     ports:
-      - "127.0.0.1:27017:27017"
+      - "127.0.0.1:27018:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -174,7 +174,7 @@ services:
     image: redis:7.2-alpine
     container_name: lexai-redis
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6380:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
