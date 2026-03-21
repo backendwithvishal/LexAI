@@ -90,15 +90,6 @@ export async function requestAnalysis({ contractId, orgId, userId, version }) {
         cacheKey: contentHash,
     });
 
-    // Increment user's monthly quota (tracked in Redis with auto-expiry)
-    const monthKey = getCurrentMonthKey();
-    const quotaKey = `quota:${userId}:${monthKey}`;
-    const currentUsage = await redis.incr(quotaKey);
-    if (currentUsage === 1) {
-        // First analysis this month — set TTL to end of month
-        await redis.expire(quotaKey, secondsUntilEndOfMonth());
-    }
-
     // Push job to RabbitMQ for the analysis worker to pick up
     const jobId = uuidv4();
     const jobPayload = {
@@ -115,6 +106,16 @@ export async function requestAnalysis({ contractId, orgId, userId, version }) {
     };
 
     await publishToQueue(ANALYSIS_QUEUE, jobPayload);
+
+    // Increment quota only after the job is confirmed queued — avoids consuming
+    // quota when the RabbitMQ publish fails and no job was actually created
+    const monthKey = getCurrentMonthKey();
+    const quotaKey = `quota:${userId}:${monthKey}`;
+    const currentUsage = await redis.incr(quotaKey);
+    if (currentUsage === 1) {
+        // First analysis this month — set TTL to end of month
+        await redis.expire(quotaKey, secondsUntilEndOfMonth());
+    }
     logger.info('Analysis job queued', { jobId, contractId, analysisId: analysis._id });
 
     // Audit trail

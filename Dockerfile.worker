@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# FIXED: --only=production is deprecated, use --omit=dev
+# Install only production dependencies
 RUN npm ci --omit=dev
 
 # ─── Production Image ─────────────────────────────────────────
@@ -18,11 +18,17 @@ RUN apk add --no-cache wget
 
 WORKDIR /app
 
+# Copy package.json first — needed so Node knows this is an ESM package ("type": "module")
+COPY package*.json ./
+
 # Copy production dependencies from builder stage
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy application source
-COPY . .
+COPY src ./src
+COPY worker.js ./
+COPY config ./config
+COPY templates ./templates
 
 # Set ownership to non-root user
 RUN chown -R appuser:appgroup /app

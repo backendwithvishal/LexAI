@@ -27,7 +27,8 @@ export const acceptInvite = Joi.object({
         .pattern(/^[^\u0000-\u001F\u007F-\u009F<>]+$/, 'no control chars or HTML')
         .optional(),
     password: Joi.string().min(8).max(128)
-        .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,\-_#^()])/)
+        // Same pattern as auth.validator.js — must match what's accepted at registration
+        .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,\-_#^()])[^\s]+$/)
         .optional()
         .messages({
             'string.pattern.base': 'Password must contain uppercase, lowercase, number, and special character.',

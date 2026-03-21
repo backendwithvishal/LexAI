@@ -72,6 +72,16 @@ export async function changePassword(userId, currentPassword, newPassword) {
         throw new AppError('Current password is incorrect.', 400, 'INVALID_PASSWORD');
     }
 
+    // Prevent re-using the same password — same check as auth.service.js
+    const isSamePassword = await user.comparePassword(newPassword);
+    if (isSamePassword) {
+        throw new AppError(
+            'New password must be different from your current password.',
+            400,
+            'PASSWORD_REUSE'
+        );
+    }
+
     user.password = newPassword;
     await user.save();
     return true;
