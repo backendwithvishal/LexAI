@@ -112,7 +112,7 @@ Replace the `jsonwebtoken`-based token layer with PASETO v4 local (XChaCha20-Pol
     - Rename import alias `verifyToken as verifyJwt` → `verifyToken` (update all call sites)
     - _Requirements: 7.1, 8.2, 8.3, 8.4_
 
-- [-] 6. Update `src/middleware/auth.middleware.js` secret reference
+- [x] 6. Update `src/middleware/auth.middleware.js` secret reference
   - Change `env.JWT_ACCESS_SECRET` → `env.PASETO_LOCAL_SECRET` in the `verifyToken` call
   - No other changes needed — error name mapping is handled in `tokenHelper.js`
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
@@ -126,14 +126,14 @@ Replace the `jsonwebtoken`-based token layer with PASETO v4 local (XChaCha20-Pol
     - Missing header → 401 `UNAUTHORIZED`
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [~] 7. Update `.env` and `.env.example` files
+- [x] 7. Update `.env` and `.env.example` files
   - Add `PASETO_LOCAL_SECRET=<min-32-char-value>` to `.env` and `.env.example`
   - Add `PASETO_ACCESS_EXPIRY=15m` and `PASETO_REFRESH_EXPIRY=7d` to both files
   - Add `PASETO_REFRESH_COOKIE_MAX_AGE_MS=604800000` to both files
   - Remove or comment out `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRY`, `JWT_REFRESH_EXPIRY`, `JWT_REFRESH_COOKIE_MAX_AGE_MS`
   - _Requirements: 7.1, 7.2, 7.3, 8.2_
 
-- [~] 8. Final checkpoint — Ensure all tests pass
+- [x] 8. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

@@ -45,7 +45,7 @@ export async function authenticate(req, res, next) {
             });
         }
 
-        const decoded = verifyToken(token, env.JWT_ACCESS_SECRET);
+        const decoded = await verifyToken(token, env.PASETO_LOCAL_SECRET);
 
         // Check if this token has been revoked (user logged out)
         const redis = getRedisClient();
