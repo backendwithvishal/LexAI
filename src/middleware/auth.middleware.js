@@ -78,7 +78,7 @@ export async function authenticate(req, res, next) {
             });
         }
 
-        if (err.name === 'JsonWebTokenError') {
+        if (err.name === 'InvalidTokenError') {
             return sendError(res, {
                 statusCode: HTTP.UNAUTHORIZED,
                 code: 'INVALID_TOKEN',

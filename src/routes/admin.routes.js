@@ -4,7 +4,7 @@
  * Base path: /api/v1/admin  (mounted in routes/index.js)
  *
  * All routes require:
- *   1. Valid JWT (authenticate)
+ *   1. Valid access token (authenticate)
  *   2. admin role (authorize)
  *   3. Strict rate limit — 5 req / 15 min (prevents scraping)
  *

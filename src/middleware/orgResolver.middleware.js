@@ -1,11 +1,11 @@
 /**
  * Org Resolver Middleware
  *
- * Securely resolves the orgId from the authenticated user's JWT token.
+ * Securely resolves the orgId from the authenticated user's PASETO token.
  * Attaches req.orgId for downstream controllers.
  *
  * SECURITY: Never trusts client-supplied headers for org context.
- * The orgId MUST come from the verified JWT payload — this prevents
+ * The orgId MUST come from the verified token payload — this prevents
  * horizontal privilege escalation where a user sets x-org-id to
  * access another organization's data.
  *
@@ -17,7 +17,7 @@ import { sendError } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 
 /**
- * Middleware that extracts orgId from the authenticated user's JWT.
+ * Middleware that extracts orgId from the authenticated user's token.
  * Returns 403 if the user does not belong to any organization.
  * Must be placed AFTER auth middleware (needs req.user).
  */

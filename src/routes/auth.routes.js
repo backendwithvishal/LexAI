@@ -93,7 +93,7 @@ router.post(
     asyncWrapper(authController.resetPassword)
 );
 
-// ─── Protected (JWT required) ─────────────────────────────────────────────
+// ─── Protected (auth token required) ──────────────────────────────────────
 
 router.post(
     '/logout',

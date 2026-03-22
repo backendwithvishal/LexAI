@@ -14,8 +14,8 @@
  * (see auth.service.js). This module only handles access and refresh tokens.
  *
  * Error name compatibility:
- *   auth.middleware.js catches err.name === 'TokenExpiredError' and 'JsonWebTokenError'.
- *   This module maps PASETO errors to those same names so the middleware needs no changes.
+ *   auth.middleware.js catches err.name === 'TokenExpiredError' and 'InvalidTokenError'.
+ *   This module maps PASETO errors to those names so the middleware handles them consistently.
  */
 
 import { createHash, createSecretKey, randomUUID } from 'crypto';
@@ -140,7 +140,7 @@ export async function signRefreshToken(payload, secret, expiresIn) {
  *
  * Throws an error with:
  *   - .name = 'TokenExpiredError' and .expiredAt set when the token is expired
- *   - .name = 'JsonWebTokenError' for any other failure (wrong key, invalid format, JWT string, etc.)
+ *   - .name = 'InvalidTokenError' for any other failure (wrong key, invalid format, etc.)
  *
  * @param {string} token
  * @param {string} secret
@@ -170,10 +170,10 @@ export async function verifyToken(token, secret) {
             throw expiredErr;
         }
 
-        // All other errors (wrong key, invalid format, JWT string, etc.) → JsonWebTokenError
-        const jwtErr = new Error(err.message || 'Invalid PASETO token');
-        jwtErr.name = 'JsonWebTokenError';
-        throw jwtErr;
+        // All other errors (wrong key, invalid format, etc.) → InvalidTokenError
+        const tokenErr = new Error(err.message || 'Invalid PASETO token');
+        tokenErr.name = 'InvalidTokenError';
+        throw tokenErr;
     }
 }
 

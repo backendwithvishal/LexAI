@@ -13,7 +13,7 @@ Create a Postman **Environment** with these variables:
 | Variable          | Initial Value                      | Description                         |
 |-------------------|------------------------------------|-------------------------------------|
 | `base_url`        | `http://localhost:3500/api/v1`     | Base API URL                        |
-| `access_token`    | *(set after login)*                | JWT access token (Bearer)           |
+| `access_token`    | *(set after login)*                | PASETO access token (Bearer)        |
 | `refresh_token`   | *(auto-set via cookie)*            | Set as HttpOnly cookie by server    |
 | `org_id`          | *(set after createOrg)*            | MongoDB ObjectId of your org        |
 | `contract_id`     | *(set after upload)*               | MongoDB ObjectId of a contract      |
@@ -198,7 +198,7 @@ Content-Type: application/json
   "success": true,
   "message": "Login successful.",
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsIn...",
+    "accessToken": "v3.local.abcdef1234567890...",
     "user": {
       "id": "65f1a2b3c4d5e6f7a8b9c0d1",
       "name": "Vishal Sanam",
@@ -232,7 +232,7 @@ POST {{base_url}}/auth/refresh-token
 {
   "success": true,
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsIn..."
+    "accessToken": "v3.local.abcdef1234567890..."
   }
 }
 ```
@@ -776,7 +776,7 @@ Authorization: Bearer {{access_token}}
 ## 📄 5. Contracts — `/api/v1/contracts`
 
 > All routes require `Authorization: Bearer {{access_token}}` + org membership.
-> The server resolves `orgId` automatically from your JWT.
+> The server resolves `orgId` automatically from your PASETO token.
 
 ---
 
@@ -1539,7 +1539,7 @@ All errors follow this shape:
 | `400`     | `FILE_TOO_LARGE`    | Uploaded file exceeds 5MB                  |
 | `400`     | `UPLOAD_ERROR`      | Unsupported file type or multer error      |
 | `401`     | `UNAUTHORIZED`      | Missing or expired access token            |
-| `401`     | `TOKEN_EXPIRED`     | JWT access token has expired               |
+| `401`     | `TOKEN_EXPIRED`     | Access token has expired                   |
 | `403`     | `FORBIDDEN`         | Role not authorized for this action        |
 | `404`     | `NOT_FOUND`         | Resource not found                         |
 | `409`     | `CONFLICT`          | Duplicate resource (e.g. email taken)      |

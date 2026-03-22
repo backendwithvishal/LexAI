@@ -6,7 +6,7 @@
  *   - Send invitation email
  *   - Accept invitation (create new user or add existing user to org)
  *
- * The invitation token is a UUID v4 — not a JWT — because invitations
+ * The invitation token is a UUID v4 — not a PASETO token — because invitations
  * don't need to carry a payload, they just need to be unique and hard to guess.
  */
 

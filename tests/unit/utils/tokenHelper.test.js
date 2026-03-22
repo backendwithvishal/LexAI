@@ -5,7 +5,7 @@
  *   - signAccessToken / signRefreshToken return { token, jti }
  *   - verifyToken decodes a valid token
  *   - verifyToken throws TokenExpiredError for expired tokens
- *   - verifyToken throws JsonWebTokenError for invalid/JWT strings
+ *   - verifyToken throws InvalidTokenError for invalid/non-PASETO strings
  *   - decodeToken returns payload without throwing on expired token
  *   - decodeToken returns null on garbage input
  *   - getRemainingTTL returns 1 for past exp values
@@ -115,36 +115,36 @@ describe('tokenHelper', () => {
       });
     }, 10000);
 
-    it('throws JsonWebTokenError for a JWT string (not PASETO)', async () => {
-      // A typical JWT string — not a valid PASETO token
-      const jwtString =
+    it('throws InvalidTokenError for a non-PASETO token string', async () => {
+      // A typical non-PASETO token string
+      const nonPasetoString =
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
         'eyJ1c2VySWQiOiJ1c2VyMTIzIn0.' +
         'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
 
-      await expect(verifyToken(jwtString, SECRET)).rejects.toMatchObject({
-        name: 'JsonWebTokenError',
+      await expect(verifyToken(nonPasetoString, SECRET)).rejects.toMatchObject({
+        name: 'InvalidTokenError',
       });
     });
 
-    it('throws JsonWebTokenError for a random garbage string', async () => {
+    it('throws InvalidTokenError for a random garbage string', async () => {
       await expect(verifyToken('not-a-token-at-all', SECRET)).rejects.toMatchObject({
-        name: 'JsonWebTokenError',
+        name: 'InvalidTokenError',
       });
     });
 
-    it('throws JsonWebTokenError for an empty string', async () => {
+    it('throws InvalidTokenError for an empty string', async () => {
       await expect(verifyToken('', SECRET)).rejects.toMatchObject({
-        name: 'JsonWebTokenError',
+        name: 'InvalidTokenError',
       });
     });
 
-    it('throws JsonWebTokenError when verified with the wrong key', async () => {
+    it('throws InvalidTokenError when verified with the wrong key', async () => {
       const { token } = await signAccessToken(ACCESS_PAYLOAD, SECRET, '15m');
       const wrongSecret = 'a-completely-different-secret-that-is-32-chars!!';
 
       await expect(verifyToken(token, wrongSecret)).rejects.toMatchObject({
-        name: 'JsonWebTokenError',
+        name: 'InvalidTokenError',
       });
     });
   });
@@ -171,12 +171,12 @@ describe('tokenHelper', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null on a JWT string', async () => {
-      const jwtString =
+    it('returns null on a non-PASETO token string', async () => {
+      const nonPasetoString =
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
         'eyJ1c2VySWQiOiJ1c2VyMTIzIn0.' +
         'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
-      const result = await decodeToken(jwtString, SECRET);
+      const result = await decodeToken(nonPasetoString, SECRET);
       expect(result).toBeNull();
     });
 

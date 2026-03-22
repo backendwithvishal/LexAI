@@ -29,7 +29,7 @@ router.patch('/:orgId', authenticate, authorize('admin', 'manager'), validate(or
 // ─── Invitation routes ────────────────────────────────────────────────────────
 // Send invite — admin or manager only
 router.post('/:orgId/invite', authenticate, authorize('admin', 'manager'), validate(orgValidator.inviteMember), asyncWrapper(orgController.inviteMember));
-// Accept invite — public (token in body is the auth mechanism, no JWT needed)
+// Accept invite — public (token in body is the auth mechanism, no auth token needed)
 router.post('/:orgId/invite/accept', validate(orgValidator.acceptInvite), asyncWrapper(orgController.acceptInvite));
 
 // ─── Member management ────────────────────────────────────────────────────────

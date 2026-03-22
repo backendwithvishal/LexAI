@@ -11,7 +11,7 @@ import { sendSuccess } from '../utils/apiResponse.js';
 
 /** GET /users/me — get the current user's profile with quota info */
 export async function getProfile(req, res) {
-    // req.user.userId is set by the authenticate middleware from the JWT
+    // req.user.userId is set by the authenticate middleware from the PASETO token
     const user = await userService.getUserProfile(req.user.userId);
     sendSuccess(res, { data: { user } });
 }

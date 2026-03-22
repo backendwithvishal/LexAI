@@ -5,7 +5,7 @@
  * returns a standardized error response. Handles:
  *   - AppError (custom errors with statusCode)
  *   - Mongoose ValidationError, CastError, duplicate key
- *   - Token errors (PASETO — uses JWT-compatible error names as fallback)
+ *   - Token errors (InvalidTokenError, TokenExpiredError — fallback if not caught in auth middleware)
  *   - Unexpected server errors
  *
  * Must be the LAST middleware registered in Express.
@@ -71,8 +71,8 @@ export function errorHandler(err, req, res, next) {
         });
     }
 
-    // Token errors — PASETO maps to these same names for compatibility (fallback if not caught in auth middleware)
-    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+    // Token errors — PASETO (fallback if not caught in auth middleware)
+    if (err.name === 'InvalidTokenError' || err.name === 'TokenExpiredError') {
         return res.status(HTTP.UNAUTHORIZED).json({
             success: false,
             error: {
