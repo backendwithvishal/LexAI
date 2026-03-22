@@ -2,7 +2,7 @@
  * Socket.io Configuration
  *
  * Sets up the Socket.io server with:
- *   - JWT authentication on connection handshake
+ *   - PASETO authentication on connection handshake
  *   - Room-based architecture (org rooms, user rooms, admin room)
  *   - Redis adapter for multi-instance horizontal scaling
  *
@@ -16,7 +16,7 @@
  */
 
 import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '../utils/tokenHelper.js';
 import { createAdapter } from '@socket.io/redis-adapter';
 import logger from '../utils/logger.js';
 
@@ -51,9 +51,9 @@ export function initSocket(httpServer, env, pubClient, subClient) {
     // Each instance publishes events to Redis, all instances receive them
     io.adapter(createAdapter(pubClient, subClient));
 
-    // ─── JWT Authentication Middleware ──────────────────────────
+    // ─── PASETO Authentication Middleware ─────────────────────────
     // Runs once per connection attempt — rejects unauthenticated clients
-    io.use((socket, next) => {
+    io.use(async (socket, next) => {
         const token = socket.handshake.auth?.token;
 
         if (!token) {
@@ -64,7 +64,7 @@ export function initSocket(httpServer, env, pubClient, subClient) {
         const raw = token.startsWith('Bearer ') ? token.slice(7) : token;
 
         try {
-            const decoded = jwt.verify(raw, env.JWT_ACCESS_SECRET);
+            const decoded = await verifyToken(raw, env.PASETO_LOCAL_SECRET);
 
             // Attach user identity to the socket for use in event handlers
             socket.userId = decoded.userId;

@@ -2,7 +2,7 @@
  * Auth Controller — The thin layer between HTTP routes and the auth service.
  *
  * Each function here does exactly three things:
- *   1. Pulls what it needs out of the request (body, cookies, user from JWT).
+ *   1. Pulls what it needs out of the request (body, cookies, user from PASETO token).
  *   2. Calls the service to do the actual work.
  *   3. Sends a success response.
  *

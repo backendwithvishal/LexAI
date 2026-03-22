@@ -48,8 +48,8 @@ const envSchema = z.object({
 
   // ─── PASETO ───────────────────────────────────────────────
   PASETO_LOCAL_SECRET: z.string().min(32, 'PASETO_LOCAL_SECRET must be at least 32 characters'),
-  PASETO_ACCESS_EXPIRY: z.string().default('15m'),
-  PASETO_REFRESH_EXPIRY: z.string().default('7d'),
+  PASETO_ACCESS_EXPIRY: z.string().regex(/^\d+[smhd]$/, 'Must be like 15m, 7d, 1h, 30s').default('15m'),
+  PASETO_REFRESH_EXPIRY: z.string().regex(/^\d+[smhd]$/, 'Must be like 15m, 7d, 1h, 30s').default('7d'),
   PASETO_REFRESH_COOKIE_MAX_AGE_MS: z.coerce.number().default(604800000), // 7 days in ms
 
   // ─── OpenRouter AI ────────────────────────────────────────
