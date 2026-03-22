@@ -147,19 +147,19 @@ export async function signRefreshToken(payload, secret, expiresIn) {
  * @returns {Promise<object>} Decoded payload with exp as Unix epoch number
  */
 export async function verifyToken(token, secret) {
+    const key = deriveKey(secret);
     try {
-        const key = deriveKey(secret);
         // Let the library validate expiry natively (throws PasetoClaimInvalid when expired)
         const decoded = await V3.decrypt(token, key);
         return normalizePayload(decoded);
     } catch (err) {
         // PasetoClaimInvalid with 'token is expired' → TokenExpiredError
         if (err.code === 'ERR_PASETO_CLAIM_INVALID' && err.message === 'token is expired') {
-            // Re-decrypt without expiry check to get the expiredAt timestamp
+            // Re-decrypt without expiry check to extract the expiredAt timestamp.
+            // Reuse the same key — no need to re-derive it.
             let expiredAt = new Date();
             try {
-                const key2 = deriveKey(secret);
-                const raw = await V3.decrypt(token, key2, { ignoreExp: true });
+                const raw = await V3.decrypt(token, key, { ignoreExp: true });
                 if (raw.exp) expiredAt = new Date(raw.exp);
             } catch {
                 // ignore — use current date as fallback

@@ -1,7 +1,7 @@
 /**
  * Auth Middleware
  *
- * Verifies the JWT access token from the Authorization header.
+ * Verifies the PASETO access token from the Authorization header.
  * Checks the Redis blacklist to reject revoked tokens (logged-out users).
  * Attaches decoded user info to req.user for downstream controllers.
  *
@@ -16,7 +16,7 @@ import env from '../config/env.js';
 import logger from '../utils/logger.js';
 
 /**
- * Protect routes — requires a valid, non-blacklisted JWT access token.
+ * Protect routes — requires a valid, non-blacklisted PASETO access token.
  *
  * Expected header:  Authorization: Bearer <access_token>
  *

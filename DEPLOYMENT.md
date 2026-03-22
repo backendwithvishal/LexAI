@@ -146,11 +146,12 @@ ANALYSIS_QUEUE=lexai.analysis.queue
 ALERT_QUEUE=lexai.alert.queue
 DLX_EXCHANGE=lexai.dlx
 
-# JWT (generate strong random strings — at least 32 chars)
-JWT_ACCESS_SECRET=a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0
-JWT_REFRESH_SECRET=f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=7d
+# PASETO (generate a strong random string — at least 32 chars)
+# Use: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+PASETO_LOCAL_SECRET=a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8
+PASETO_ACCESS_EXPIRY=15m
+PASETO_REFRESH_EXPIRY=7d
+PASETO_REFRESH_COOKIE_MAX_AGE_MS=604800000
 
 # OpenRouter AI
 OPENROUTER_API_KEY=sk-or-v1-your-openrouter-api-key-here
@@ -221,7 +222,7 @@ Expected response:
 
 ### 1. "Environment validation failed"
 **Cause:** Missing required env vars.
-**Fix:** Check all env vars are set in Render dashboard. Especially `MONGO_URI`, `RABBITMQ_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `OPENROUTER_API_KEY`.
+**Fix:** Check all env vars are set in Render dashboard. Especially `MONGO_URI`, `RABBITMQ_URL`, `PASETO_LOCAL_SECRET`, and `OPENROUTER_API_KEY`.
 
 ### 2. "MongooseServerSelectionError: connection timed out"
 **Cause:** MongoDB Atlas IP whitelist blocking Render's IPs.

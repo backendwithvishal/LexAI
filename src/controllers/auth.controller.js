@@ -28,7 +28,7 @@ import {
     revokeAllRefreshTokens,
     buildRefreshCookieOptions,
 } from '../services/auth.service.js';
-import { sendSuccess } from '../utils/apiResponse.js';
+import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 import * as auditService from '../services/audit.service.js';
 import { getIPInfo, checkDisposableEmail } from '../services/enrichment.service.js';
@@ -153,12 +153,10 @@ export async function refreshToken(req, res) {
 
     // Guard here instead of the service so we return before making any DB calls
     if (!token) {
-        return res.status(HTTP.UNAUTHORIZED).json({
-            success: false,
-            error: {
-                code: 'UNAUTHORIZED',
-                message: 'Refresh token not found. Please log in again.',
-            },
+        return sendError(res, {
+            statusCode: HTTP.UNAUTHORIZED,
+            code: 'UNAUTHORIZED',
+            message: 'Refresh token not found. Please log in again.',
         });
     }
 

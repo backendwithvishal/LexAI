@@ -11,8 +11,8 @@
  *     latest code ever works.
  *
  * How login tokens work:
- *   - Access token  → short-lived JWT (15 min), sent in Authorization header.
- *   - Refresh token → long-lived JWT (7 days), stored in an HttpOnly cookie.
+ *   - Access token  → short-lived PASETO token (15 min), sent in Authorization header.
+ *   - Refresh token → long-lived PASETO token (7 days), stored in an HttpOnly cookie.
  *   - On every token refresh, the old refresh token is blacklisted in Redis and
  *     a brand new one is issued. This prevents stolen tokens being reused.
  *
@@ -56,7 +56,7 @@ const REDIS_KEY = {
     // Account lockout flag per email address
     loginLock: (email) => `login:lockout:${email}`,
 
-    // Revoked JWT IDs — checked on every authenticated request
+    // Revoked token JTIs — checked on every authenticated request
     blacklist: (jti) => `blacklist:${jti}`,
 
     // Active refresh token metadata
@@ -157,13 +157,16 @@ export async function listRefreshTokens(userId) {
     const keyUserSet = REDIS_KEY.userRefreshSet(userId.toString());
     const jtis = await redis.smembers(keyUserSet);
 
-    // convert to objects with remaining ttl for UX
-    const result = [];
+    if (jtis.length === 0) return [];
+
+    // Pipeline all TTL lookups in one round-trip
+    const pipeline = redis.pipeline();
     for (const jti of jtis) {
-        const ttl = await redis.ttl(REDIS_KEY.refreshToken(jti));
-        result.push({ jti, expiresIn: ttl });
+        pipeline.ttl(REDIS_KEY.refreshToken(jti));
     }
-    return result;
+    const results = await pipeline.exec();
+
+    return jtis.map((jti, i) => ({ jti, expiresIn: results[i][1] }));
 }
 
 export async function revokeRefreshToken(userId, jti) {
@@ -190,13 +193,23 @@ export async function revokeAllRefreshTokens(userId) {
     const jtis = await _removeAllRefreshTokens(userId);
     if (jtis.length === 0) return;
 
-    const pipeline = redis.pipeline();
+    // Pipeline all TTL lookups first, then pipeline the blacklist writes
+    const ttlPipeline = redis.pipeline();
     for (const jti of jtis) {
-        // attempt to get remaining ttl from the metadata key; if it's gone assume expired
-        const ttl = await redis.ttl(REDIS_KEY.refreshToken(jti));
-        if (ttl > 0) pipeline.set(REDIS_KEY.blacklist(jti), '1', 'EX', ttl);
+        ttlPipeline.ttl(REDIS_KEY.refreshToken(jti));
     }
-    await pipeline.exec();
+    const ttlResults = await ttlPipeline.exec();
+
+    const blacklistPipeline = redis.pipeline();
+    let hasEntries = false;
+    for (let i = 0; i < jtis.length; i++) {
+        const ttl = ttlResults[i][1];
+        if (ttl > 0) {
+            blacklistPipeline.set(REDIS_KEY.blacklist(jtis[i]), '1', 'EX', ttl);
+            hasEntries = true;
+        }
+    }
+    if (hasEntries) await blacklistPipeline.exec();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -399,7 +412,7 @@ export async function refreshAccessToken(refreshTokenStr) {
         throw new AppError('Refresh token not provided. Please log in again.', 401, 'UNAUTHORIZED');
     }
 
-    // Verify the JWT signature and expiry
+    // Verify the PASETO token signature and expiry
     let decoded;
     try {
         decoded = await verifyToken(refreshTokenStr, env.PASETO_LOCAL_SECRET);
