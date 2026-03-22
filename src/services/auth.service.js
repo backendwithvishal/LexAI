@@ -28,7 +28,7 @@ import { getRedisClient } from '../config/redis.js';
 import {
     signAccessToken,
     signRefreshToken,
-    verifyToken as verifyJwt,
+    verifyToken,
     decodeToken,
     getRemainingTTL,
 } from '../utils/tokenHelper.js';
@@ -94,7 +94,7 @@ export function buildRefreshCookieOptions() {
         httpOnly: true,                                    // JS cannot read this cookie
         secure: env.NODE_ENV === 'production',           // HTTPS only in prod
         sameSite: 'strict',                                // blocks CSRF
-        maxAge: env.JWT_REFRESH_COOKIE_MAX_AGE_MS,       // 7 days in ms
+        maxAge: env.PASETO_REFRESH_COOKIE_MAX_AGE_MS,     // 7 days in ms
         path: '/',
     };
 }
@@ -375,11 +375,11 @@ export async function loginUser({ email, password }) {
 
     // Sign both tokens
     const accessPayload = { userId: user._id, orgId: user.organization, role: user.role };
-    const access = signAccessToken(accessPayload, env.JWT_ACCESS_SECRET, env.JWT_ACCESS_EXPIRY);
-    const refresh = signRefreshToken({ userId: user._id }, env.JWT_REFRESH_SECRET, env.JWT_REFRESH_EXPIRY);
+    const access = await signAccessToken(accessPayload, env.PASETO_LOCAL_SECRET, env.PASETO_ACCESS_EXPIRY);
+    const refresh = await signRefreshToken({ userId: user._id }, env.PASETO_LOCAL_SECRET, env.PASETO_REFRESH_EXPIRY);
 
     // Persist the refresh token jti so we can manage sessions later
-    const decodedRefresh = decodeToken(refresh.token);
+    const decodedRefresh = await decodeToken(refresh.token, env.PASETO_LOCAL_SECRET);
     if (decodedRefresh && decodedRefresh.exp) {
         await _storeRefreshToken(user._id, refresh.jti, decodedRefresh.exp);
     }
@@ -402,7 +402,7 @@ export async function refreshAccessToken(refreshTokenStr) {
     // Verify the JWT signature and expiry
     let decoded;
     try {
-        decoded = verifyJwt(refreshTokenStr, env.JWT_REFRESH_SECRET);
+        decoded = await verifyToken(refreshTokenStr, env.PASETO_LOCAL_SECRET);
     } catch {
         throw new AppError('Invalid or expired refresh token. Please log in again.', 401, 'UNAUTHORIZED');
     }
@@ -441,11 +441,11 @@ export async function refreshAccessToken(refreshTokenStr) {
 
     // Issue a fresh pair of tokens
     const accessPayload = { userId: user._id, orgId: user.organization, role: user.role };
-    const newAccess = signAccessToken(accessPayload, env.JWT_ACCESS_SECRET, env.JWT_ACCESS_EXPIRY);
-    const newRefresh = signRefreshToken({ userId: user._id }, env.JWT_REFRESH_SECRET, env.JWT_REFRESH_EXPIRY);
+    const newAccess = await signAccessToken(accessPayload, env.PASETO_LOCAL_SECRET, env.PASETO_ACCESS_EXPIRY);
+    const newRefresh = await signRefreshToken({ userId: user._id }, env.PASETO_LOCAL_SECRET, env.PASETO_REFRESH_EXPIRY);
 
     // store the new refresh token JTI
-    const decodedNew = decodeToken(newRefresh.token);
+    const decodedNew = await decodeToken(newRefresh.token, env.PASETO_LOCAL_SECRET);
     if (decodedNew && decodedNew.exp) {
         await _storeRefreshToken(user._id, newRefresh.jti, decodedNew.exp);
     }
@@ -470,7 +470,7 @@ export async function logoutUser(jti, exp, refreshTokenStr) {
     // Also blacklist the refresh token so the cookie can't mint a new access token
     if (refreshTokenStr) {
         try {
-            const decoded = verifyJwt(refreshTokenStr, env.JWT_REFRESH_SECRET);
+            const decoded = await verifyToken(refreshTokenStr, env.PASETO_LOCAL_SECRET);
             const refreshTTL = getRemainingTTL(decoded.exp);
             if (refreshTTL > 0) {
                 pipeline.set(REDIS_KEY.blacklist(decoded.jti), '1', 'EX', refreshTTL);

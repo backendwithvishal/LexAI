@@ -46,12 +46,11 @@ const envSchema = z.object({
   ALERT_QUEUE: z.string().default('lexai.alert.queue'),
   DLX_EXCHANGE: z.string().default('lexai.dlx'),
 
-  // ─── JWT ──────────────────────────────────────────────────
-  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
-  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
-  JWT_ACCESS_EXPIRY: z.string().default('15m'),
-  JWT_REFRESH_EXPIRY: z.string().default('7d'),
-  JWT_REFRESH_COOKIE_MAX_AGE_MS: z.coerce.number().default(604800000), // 7 days in ms
+  // ─── PASETO ───────────────────────────────────────────────
+  PASETO_LOCAL_SECRET: z.string().min(32, 'PASETO_LOCAL_SECRET must be at least 32 characters'),
+  PASETO_ACCESS_EXPIRY: z.string().default('15m'),
+  PASETO_REFRESH_EXPIRY: z.string().default('7d'),
+  PASETO_REFRESH_COOKIE_MAX_AGE_MS: z.coerce.number().default(604800000), // 7 days in ms
 
   // ─── OpenRouter AI ────────────────────────────────────────
   OPENROUTER_API_KEY: z.string().default(''),
@@ -125,11 +124,13 @@ if (env.NODE_ENV === 'production') {
         'change-me',
         'your-key-here',
         'secret',
+        'example',
+        'placeholder',
         'Admin112233',
         'admin@lexai.io',
     ];
 
-    const sensitiveKeys = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'OPENROUTER_API_KEY'];
+    const sensitiveKeys = ['PASETO_LOCAL_SECRET', 'OPENROUTER_API_KEY'];
     for (const key of sensitiveKeys) {
         const val = env[key] || '';
         if (PLACEHOLDER_PATTERNS.some(p => val.toLowerCase().includes(p.toLowerCase()))) {
