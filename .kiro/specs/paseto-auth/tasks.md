@@ -112,7 +112,7 @@ Replace the `jsonwebtoken`-based token layer with PASETO v4 local (XChaCha20-Pol
     - Rename import alias `verifyToken as verifyJwt` → `verifyToken` (update all call sites)
     - _Requirements: 7.1, 8.2, 8.3, 8.4_
 
-- [~] 6. Update `src/middleware/auth.middleware.js` secret reference
+- [-] 6. Update `src/middleware/auth.middleware.js` secret reference
   - Change `env.JWT_ACCESS_SECRET` → `env.PASETO_LOCAL_SECRET` in the `verifyToken` call
   - No other changes needed — error name mapping is handled in `tokenHelper.js`
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
