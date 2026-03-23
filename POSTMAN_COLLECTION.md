@@ -14,11 +14,13 @@ Create a Postman **Environment** with these variables:
 |-------------------|------------------------------------|-------------------------------------|
 | `base_url`        | `http://localhost:3500/api/v1`     | Base API URL                        |
 | `access_token`    | *(set after login)*                | PASETO access token (Bearer)        |
+| `admin_token`     | *(set after admin login)*          | PASETO access token for admin user  |
 | `refresh_token`   | *(auto-set via cookie)*            | Set as HttpOnly cookie by server    |
 | `org_id`          | *(set after createOrg)*            | MongoDB ObjectId of your org        |
 | `contract_id`     | *(set after upload)*               | MongoDB ObjectId of a contract      |
 | `analysis_id`     | *(set after requestAnalysis)*      | MongoDB ObjectId of an analysis     |
 | `user_id`         | *(set after login)*                | MongoDB ObjectId of your user       |
+| `notification_id` | *(from GET /notifications)*        | MongoDB ObjectId of a notification  |
 | `otp`             | *(from email / dev response)*      | 6-digit OTP for email verification  |
 | `reset_token`     | *(from forgot-password email)*     | Hex token for password reset        |
 | `session_jti`     | *(from GET /auth/sessions)*        | UUID JTI of a session to revoke     |
@@ -29,7 +31,7 @@ Create a Postman **Environment** with these variables:
 
 ---
 
-## 🏥 1. Health Check
+## 🏥 1. Health Check ✅
 
 No authentication required. Used by Docker / load balancers.
 
@@ -69,7 +71,7 @@ GET http://localhost:3500/health
 
 ---
 
-## 🔐 2. Auth — `/api/v1/auth`
+## 🔐 2. Auth — `/api/v1/auth` ✅
 
 > Rate-limited. Public endpoints do NOT need a token.
 
@@ -1357,9 +1359,35 @@ Authorization: Bearer {{access_token}}
 
 ---
 
-## 🛡️ 9. Admin — `/api/v1/admin`
+## 🛡️ 9. Admin — `/api/v1/admin` ✅
 
-> All routes require `Authorization: Bearer {{access_token}}` + **`role: admin`**.
+> All routes require `Authorization: Bearer {{admin_token}}` + **`role: admin`**.
+
+### 🔑 Getting Admin Access
+
+**Step 1 — Seed the admin user (run once on a fresh database):**
+```bash
+npm run seed
+```
+Default credentials (from `.env`):
+- Email: `admin@lexai.io`
+- Password: `Admin112233`
+
+**Step 2 — Login with admin credentials:**
+```
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@lexai.io",
+  "password": "Admin112233"
+}
+```
+Copy `data.accessToken` → set as `admin_token` in your Postman environment.
+
+> ⚠️ Use `{{admin_token}}` (not `{{access_token}}`) for all admin endpoints so you don't overwrite your regular user token.
+
+---
 
 ---
 
@@ -1371,7 +1399,7 @@ GET {{base_url}}/admin/stats
 
 **Headers:**
 ```
-Authorization: Bearer {{access_token}}
+Authorization: Bearer {{admin_token}}
 ```
 
 **Success Response (200):**
@@ -1402,7 +1430,7 @@ GET {{base_url}}/admin/queue/status
 
 **Headers:**
 ```
-Authorization: Bearer {{access_token}}
+Authorization: Bearer {{admin_token}}
 ```
 
 **Success Response (200):**
@@ -1430,7 +1458,7 @@ GET {{base_url}}/admin/users
 
 **Headers:**
 ```
-Authorization: Bearer {{access_token}}
+Authorization: Bearer {{admin_token}}
 ```
 
 **Query Parameters (optional):**
@@ -1457,6 +1485,115 @@ GET {{base_url}}/admin/users?page=1&limit=20
 
 ---
 
+### POST — Create User _(🔒 Admin only)_
+
+```
+POST {{base_url}}/admin/users
+```
+
+Admin-created users are pre-verified and skip the OTP email flow entirely.
+
+**Headers:**
+```
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+```
+
+**Body (raw JSON):**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "SecurePass@123",
+  "role": "viewer"
+}
+```
+
+Roles: `"admin"`, `"manager"`, `"viewer"` — **required, no default**.
+
+**Password rules:** min 8 chars, must contain uppercase, lowercase, digit, special char.
+
+**Success Response (201):**
+```json
+{
+  "success": true,
+  "message": "User created successfully.",
+  "data": {
+    "user": {
+      "id": "65f1a2b3c4d5e6f7a8b9c0d1",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "viewer",
+      "emailVerified": true,
+      "isActive": true
+    }
+  }
+}
+```
+
+---
+
+### PATCH — Update User _(🔒 Admin only)_
+
+```
+PATCH {{base_url}}/admin/users/{{user_id}}
+```
+
+Update a user's name, role, or active status. Send only the fields you want to change.
+
+**Headers:**
+```
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+```
+
+**Body (raw JSON — all fields optional, send only what you want to change):**
+```json
+{
+  "name": "John Updated",
+  "role": "manager",
+  "isActive": true
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "User updated successfully.",
+  "data": { "user": { ... } }
+}
+```
+
+---
+
+### DELETE — Deactivate User _(🔒 Admin only)_
+
+```
+DELETE {{base_url}}/admin/users/{{user_id}}
+```
+
+Soft-deactivates the user (sets `isActive: false`). The account is not deleted — the user just can't log in.
+
+**Headers:**
+```
+Authorization: Bearer {{admin_token}}
+```
+
+**Body:** _(empty)_
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "User deactivated successfully."
+}
+```
+
+> To reactivate, use `PATCH /admin/users/{{user_id}}` with `{ "isActive": true }`.
+
+---
+
 ### GET — Audit Logs _(🔒 Admin only)_
 
 ```
@@ -1465,7 +1602,7 @@ GET {{base_url}}/admin/audit-logs
 
 **Headers:**
 ```
-Authorization: Bearer {{access_token}}
+Authorization: Bearer {{admin_token}}
 ```
 
 **Query Parameters (optional):**
@@ -1523,20 +1660,29 @@ All errors follow this shape:
 ## 🔄 Recommended Testing Order
 
 ```
-1.  GET  /health                           ← Verify all services are up
-2.  POST /auth/register                    ← Create account; copy otp from dev response
-3.  POST /auth/verify-email                ← Verify OTP
-4.  POST /auth/login                       ← Copy access_token + user_id
-5.  GET  /auth/sessions                    ← Copy a jti → session_jti
-6.  POST /orgs                             ← Create org; copy org_id
-7.  POST /contracts (file or JSON)         ← Upload; copy contract_id
-8.  GET  /contracts                        ← List contracts
-9.  GET  /contracts/{{contract_id}}        ← View single contract
-10. POST /analyses                         ← Queue analysis; copy analysis_id
-11. GET  /analyses/{{analysis_id}}         ← Poll for result
-12. GET  /notifications/unread-count       ← Check badge count
-13. GET  /notifications                    ← View notifications
-14. GET  /enrichment/country/India         ← Test enrichment
-15. GET  /admin/stats                      ← Admin token only
-16. POST /auth/logout                      ← Blacklist tokens
+1.  GET    /health                              ← Verify all services are up
+
+# ── Admin setup (run npm run seed first) ──────────────────────────────────
+2.  POST   /auth/login (admin creds)            ← email: admin@lexai.io / Admin112233 → copy admin_token
+3.  POST   /admin/users                         ← Create a user directly; copy user_id
+4.  PATCH  /admin/users/{{user_id}}             ← Update role or status
+5.  GET    /admin/users                         ← List all users
+6.  GET    /admin/stats                         ← Platform stats
+
+# ── Regular user flow ──────────────────────────────────────────────────────
+7.  POST   /auth/register                       ← Create account; copy otp from dev response
+8.  POST   /auth/verify-email                   ← Verify OTP
+9.  POST   /auth/login                          ← Copy access_token + user_id
+10. GET    /auth/sessions                       ← Copy a jti → session_jti
+11. POST   /orgs                                ← Create org; copy org_id
+12. POST   /contracts (file or JSON)            ← Upload; copy contract_id
+13. GET    /contracts                           ← List contracts
+14. GET    /contracts/{{contract_id}}           ← View single contract
+15. POST   /analyses                            ← Queue analysis; copy analysis_id
+16. GET    /analyses/{{analysis_id}}            ← Poll for result
+17. GET    /notifications/unread-count          ← Check badge count
+18. GET    /notifications                       ← View notifications; copy notification_id
+19. GET    /enrichment/country/India            ← Test enrichment
+20. DELETE /admin/users/{{user_id}}             ← (Admin) Deactivate user
+21. POST   /auth/logout                         ← Blacklist tokens
 ```

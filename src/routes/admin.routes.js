@@ -8,6 +8,15 @@
  *   2. admin role (authorize)
  *   3. Strict rate limit — 5 req / 15 min (prevents scraping)
  *
+ * Routes:
+ *   GET    /stats          — Platform-wide usage stats
+ *   GET    /queue/status   — RabbitMQ queue health
+ *   GET    /users          — Paginated user list
+ *   POST   /users          — Create a user directly (pre-verified, no OTP)
+ *   PATCH  /users/:id      — Update user name, role, or active status
+ *   DELETE /users/:id      — Deactivate a user (soft delete)
+ *   GET    /audit-logs     — Global audit trail
+ *
  * These endpoints are for internal dashboards only — not exposed to regular users.
  */
 
@@ -26,6 +35,9 @@ router.use(authenticate, authorize('admin'), rateLimiter('strict'));
 router.get('/stats',        asyncWrapper(adminController.getStats));        // Platform-wide usage stats
 router.get('/queue/status', asyncWrapper(adminController.getQueueStatus));  // RabbitMQ queue health
 router.get('/users',        asyncWrapper(adminController.listUsers));       // Paginated user list
+router.post('/users',       asyncWrapper(adminController.createUser));      // Create user (no OTP)
+router.patch('/users/:id',  asyncWrapper(adminController.updateUser));      // Update role/status/name
+router.delete('/users/:id', asyncWrapper(adminController.deactivateUser));  // Soft-deactivate user
 router.get('/audit-logs',   asyncWrapper(adminController.getAuditLogs));    // Global audit trail
 
 export default router;

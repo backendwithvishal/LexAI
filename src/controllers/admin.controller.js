@@ -13,7 +13,7 @@ import Analysis from '../models/Analysis.model.js';
 import { getChannel } from '../config/rabbitmq.js';
 import { QUEUES } from '../constants/queues.js';
 import * as auditService from '../services/audit.service.js';
-import { sendSuccess, buildPaginationMeta } from '../utils/apiResponse.js';
+import { sendSuccess, sendError, buildPaginationMeta } from '../utils/apiResponse.js';
 
 /** GET /admin/stats — platform-wide usage statistics */
 export async function getStats(req, res) {
@@ -92,6 +92,77 @@ export async function listUsers(req, res) {
     sendSuccess(res, {
         data: { users, meta: buildPaginationMeta(total, parseInt(page), parseInt(limit)) },
     });
+}
+
+/** POST /admin/users — create a user directly (pre-verified, no OTP flow) */
+export async function createUser(req, res) {
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password || !role) {
+        return sendError(res, { statusCode: 400, code: 'VALIDATION_ERROR', message: 'name, email, password, and role are required.' });
+    }
+
+    const validRoles = ['admin', 'manager', 'viewer'];
+    if (!validRoles.includes(role)) {
+        return sendError(res, { statusCode: 400, code: 'VALIDATION_ERROR', message: `role must be one of: ${validRoles.join(', ')}.` });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existing = await User.findOne({ email: normalizedEmail }).lean();
+    if (existing) {
+        return sendError(res, { statusCode: 409, code: 'DUPLICATE_EMAIL', message: 'An account with this email already exists.' });
+    }
+
+    const user = await User.create({
+        name,
+        email: normalizedEmail,
+        password,
+        role,
+        emailVerified: true,  // Admin-created users skip the OTP flow
+        isActive: true,
+    });
+
+    sendSuccess(res, {
+        statusCode: 201,
+        message: 'User created successfully.',
+        data: { user },
+    });
+}
+
+/** PATCH /admin/users/:id — update a user's role, active status, or name */
+export async function updateUser(req, res) {
+    const allowedFields = ['name', 'role', 'isActive'];
+    const updates = {};
+    for (const field of allowedFields) {
+        if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
+
+    if (Object.keys(updates).length === 0) {
+        return sendError(res, { statusCode: 400, code: 'VALIDATION_ERROR', message: 'No valid fields provided to update.' });
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+    if (!user) {
+        return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'User not found.' });
+    }
+
+    sendSuccess(res, { message: 'User updated successfully.', data: { user } });
+}
+
+/** DELETE /admin/users/:id — deactivate a user (soft delete) */
+export async function deactivateUser(req, res) {
+    // Prevent admin from deactivating themselves
+    if (req.params.id === req.user.userId.toString()) {
+        return sendError(res, { statusCode: 403, code: 'FORBIDDEN', message: 'You cannot deactivate your own account.' });
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    if (!user) {
+        return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'User not found.' });
+    }
+
+    sendSuccess(res, { message: 'User deactivated successfully.' });
 }
 
 /** GET /admin/audit-logs — paginated global audit trail */

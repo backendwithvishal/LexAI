@@ -13,6 +13,7 @@
  */
 
 import axios from 'axios';
+import env from '../config/env.js';
 import logger from '../utils/logger.js';
 
 const MAX_RETRIES = 3;
@@ -26,8 +27,8 @@ const INITIAL_RETRY_DELAY = 2000; // 2 seconds, doubles each attempt
  * @returns {Promise<object>} Structured analysis result
  */
 export async function analyzeContract(content) {
-    const primaryModel = process.env.AI_PRIMARY_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
-    const fallbackModel = process.env.AI_FALLBACK_MODEL || 'mistralai/mistral-7b-instruct:free';
+    const primaryModel = env.AI_PRIMARY_MODEL;
+    const fallbackModel = env.AI_FALLBACK_MODEL;
 
     // Try primary model first
     try {
@@ -56,7 +57,7 @@ async function callOpenRouter(content, model, attempt = 1) {
 
     try {
         const response = await axios.post(
-            `${process.env.OPENROUTER_BASE_URL}/chat/completions`,
+            `${env.OPENROUTER_BASE_URL}/chat/completions`,
             {
                 model,
                 messages: [
@@ -69,7 +70,7 @@ async function callOpenRouter(content, model, attempt = 1) {
             },
             {
                 headers: {
-                    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://lexai.io',
                     'X-Title': 'LexAI Contract Analysis',
@@ -228,7 +229,7 @@ ${diffText}`;
 
     try {
         const response = await axios.post(
-            `${process.env.OPENROUTER_BASE_URL}/chat/completions`,
+            `${env.OPENROUTER_BASE_URL}/chat/completions`,
             {
                 model: diffModel,
                 messages: [
@@ -240,7 +241,7 @@ ${diffText}`;
             },
             {
                 headers: {
-                    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
                     'Content-Type': 'application/json',
                 },
                 timeout: 60000,
