@@ -132,25 +132,6 @@ async function _removeRefreshToken(userId, jti) {
     await redis.pipeline().srem(keyUserSet, jti).del(keyToken).exec();
 }
 
-/**
- * Remove all stored refresh tokens for a user; returns the list of JTIs
- * that were removed so the caller can blacklist them if desired.
- */
-async function _removeAllRefreshTokens(userId) {
-    const redis = getRedisClient();
-    const keyUserSet = REDIS_KEY.userRefreshSet(userId.toString());
-    const jtis = await redis.smembers(keyUserSet);
-    if (jtis.length > 0) {
-        const pipeline = redis.pipeline();
-        for (const jti of jtis) {
-            pipeline.del(REDIS_KEY.refreshToken(jti));
-        }
-        pipeline.del(keyUserSet);
-        await pipeline.exec();
-    }
-    return jtis;
-}
-
 // expose some helpers for controllers to call
 export async function listRefreshTokens(userId) {
     const redis = getRedisClient();
@@ -473,28 +454,32 @@ export async function refreshAccessToken(refreshTokenStr) {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function logoutUser(jti, exp, refreshTokenStr) {
     const redis = getRedisClient();
+    const pipeline = redis.pipeline();
 
     // Blacklist the access token immediately so it stops working,
     // even though it hasn't expired yet. TTL matches the token's remaining life.
     const accessTTL = getRemainingTTL(exp);
     if (accessTTL > 0) {
-        await redis.set(REDIS_KEY.blacklist(jti), '1', 'EX', accessTTL);
+        pipeline.set(REDIS_KEY.blacklist(jti), '1', 'EX', accessTTL);
     }
 
-    // Also blacklist the refresh token so the cookie can't mint a new access token
+    // Also blacklist the refresh token so the cookie can't mint a new access token.
+    // We handle this separately because it requires an async verifyToken call first.
+    await pipeline.exec();
+
     if (refreshTokenStr) {
         try {
             const decoded = await verifyToken(refreshTokenStr, env.PASETO_LOCAL_SECRET);
             const refreshTTL = getRemainingTTL(decoded.exp);
 
-            const pipeline = redis.pipeline();
+            const refreshPipeline = redis.pipeline();
             if (refreshTTL > 0) {
-                pipeline.set(REDIS_KEY.blacklist(decoded.jti), '1', 'EX', refreshTTL);
+                refreshPipeline.set(REDIS_KEY.blacklist(decoded.jti), '1', 'EX', refreshTTL);
             }
             // remove from user's session set
-            pipeline.srem(REDIS_KEY.userRefreshSet(decoded.userId.toString()), decoded.jti);
-            pipeline.del(REDIS_KEY.refreshToken(decoded.jti));
-            await pipeline.exec();
+            refreshPipeline.srem(REDIS_KEY.userRefreshSet(decoded.userId.toString()), decoded.jti);
+            refreshPipeline.del(REDIS_KEY.refreshToken(decoded.jti));
+            await refreshPipeline.exec();
         } catch {
             // Token is already expired or was tampered with — nothing to blacklist
             logger.debug('Refresh token invalid at logout; skipping blacklist');

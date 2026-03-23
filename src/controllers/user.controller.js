@@ -3,7 +3,7 @@
  *
  * Profile management endpoints.
  * Email changes are NOT allowed here — they require a separate verification flow.
- * Password changes are handled by auth.controller.js (requires current password).
+ * Password changes are handled by POST /api/v1/auth/change-password.
  */
 
 import * as userService from '../services/user.service.js';
@@ -21,12 +21,6 @@ export async function updateProfile(req, res) {
     // Service only allows 'name' — other fields are silently ignored
     const user = await userService.updateUserProfile(req.user.userId, req.body);
     sendSuccess(res, { message: 'Profile updated successfully', data: { user } });
-}
-
-/** PATCH /users/me/password — change password (requires current password) */
-export async function changePassword(req, res) {
-    await userService.changePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
-    sendSuccess(res, { message: 'Password changed successfully.' });
 }
 
 /** GET /users/:id — get any user by ID (admin only, enforced by RBAC middleware) */

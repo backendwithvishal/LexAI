@@ -8,6 +8,7 @@
  *
  * Note: email changes are NOT supported here — they require a separate
  * verification flow to prevent account takeover.
+ * Note: password changes are handled by POST /api/v1/auth/change-password.
  */
 
 import { Router } from 'express';
@@ -24,8 +25,6 @@ const router = Router();
 router.get('/me', authenticate, asyncWrapper(userController.getProfile));
 // Update profile — only 'name' is allowed
 router.patch('/me', authenticate, validate(userValidator.updateProfile), asyncWrapper(userController.updateProfile));
-// Change password — requires current password for verification
-router.patch('/me/password', authenticate, validate(userValidator.changePassword), asyncWrapper(userController.changePassword));
 // Admin-only: look up any user by ID
 router.get('/:id', authenticate, authorize('admin'), asyncWrapper(userController.getUserById));
 

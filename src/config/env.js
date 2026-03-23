@@ -83,12 +83,10 @@ const envSchema = z.object({
   MAIL_PASS: z.string().default(''),
 
   // ─── Redis Token TTLs ─────────────────────────────────────
-  // How long email OTP lives in Redis (seconds) — 10 minutes
-  EMAIL_VERIFICATION_EXPIRY: z.coerce.number().default(600),
   // How long password reset tokens live in Redis (seconds)
   PASSWORD_RESET_EXPIRY: z.coerce.number().default(3600), // 1 hour
-  // OTP-specific expiry (kept separate for clarity)
-  OTP_EXPIRY: z.coerce.number().default(600), // 10 minutes
+  // How long email OTP lives in Redis (seconds) — 10 minutes
+  OTP_EXPIRY: z.coerce.number().default(600),
 
   // ─── External APIs ───────────────────────────────────────
   REST_COUNTRIES_URL: z.string().url().default('https://restcountries.com/v3.1'),

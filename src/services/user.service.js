@@ -4,8 +4,9 @@
  * Business logic for user profile operations:
  *   - Get profile with quota info
  *   - Update profile (name only — email changes require verification)
- *   - Change password (requires current password)
  *   - Admin user lookup
+ *
+ * Password changes are handled by auth.service.js (POST /auth/change-password).
  */
 
 import User from '../models/User.model.js';
@@ -54,37 +55,6 @@ export async function updateUserProfile(userId, updates) {
     }
 
     return user;
-}
-
-/**
- * Change the current user's password.
- * Requires the current password for verification — prevents session hijacking.
- */
-export async function changePassword(userId, currentPassword, newPassword) {
-    const user = await User.findById(userId).select('+password');
-
-    if (!user) {
-        throw new AppError('User not found.', 404, 'NOT_FOUND');
-    }
-
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-        throw new AppError('Current password is incorrect.', 400, 'INVALID_PASSWORD');
-    }
-
-    // Prevent re-using the same password — same check as auth.service.js
-    const isSamePassword = await user.comparePassword(newPassword);
-    if (isSamePassword) {
-        throw new AppError(
-            'New password must be different from your current password.',
-            400,
-            'PASSWORD_REUSE'
-        );
-    }
-
-    user.password = newPassword;
-    await user.save();
-    return true;
 }
 
 /**

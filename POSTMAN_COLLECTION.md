@@ -435,6 +435,7 @@ Logs you out from all devices.
 ## 👤 3. Users — `/api/v1/users`
 
 > All routes require `Authorization: Bearer {{access_token}}`
+> Password changes: use `POST /api/v1/auth/change-password` instead.
 
 ---
 
@@ -497,36 +498,6 @@ Content-Type: application/json
       "email": "vishal@example.com"
     }
   }
-}
-```
-
----
-
-### PATCH — Change My Password (via users) _(🔒 Protected)_
-
-```
-PATCH {{base_url}}/users/me/password
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
-```json
-{
-  "currentPassword": "SecurePass@123",
-  "newPassword": "AnotherPass@789"
-}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Password changed successfully."
 }
 ```
 

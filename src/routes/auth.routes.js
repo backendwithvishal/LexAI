@@ -36,10 +36,10 @@ import { asyncWrapper } from '../utils/asyncWrapper.js';
 const router = Router();
 
 // Named preset limiters — see rateLimiter.middleware.js for window/max values
-const authLimiter   = rateLimiter('auth');    // 10 req / 15 min
+const authLimiter = rateLimiter('auth');    // 10 req / 15 min
 const strictLimiter = rateLimiter('strict');  // 5 req / 15 min
 // Brute-force protection: locks by IP + email after 5 failed attempts
-const loginBrute    = bruteForceProtection({ maxAttempts: 5, lockoutMs: 15 * 60_000, identifierField: 'email' });
+const loginBrute = bruteForceProtection({ maxAttempts: 5, lockoutMs: 15 * 60_000, identifierField: 'email' });
 
 // ─── Public ──────────────────────────────────────────────────────────────────
 
