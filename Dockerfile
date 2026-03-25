@@ -8,7 +8,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 # ─── Production Image ─────────────────────────────────────────
-FROM node:20-alpine
+FROM node:20-alpine AS production
 
 # Security: create a non-root user to run the application
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
