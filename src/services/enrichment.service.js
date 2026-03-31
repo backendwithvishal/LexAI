@@ -20,10 +20,27 @@
  * Every function returns null on failure instead of throwing.
  */
 
-import axios from 'axios';
 import logger from '../utils/logger.js';
 
 const TIMEOUT = 5000; // 5s timeout — fail fast for external API calls
+
+/**
+ * Thin fetch wrapper with timeout support.
+ * Returns parsed JSON or throws on non-2xx / timeout.
+ */
+async function fetchJSON(url, options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT);
+    try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+    } catch (err) {
+        clearTimeout(timer);
+        throw err;
+    }
+}
 
 // ─── REST Countries ───────────────────────────────────────────────────────────
 
@@ -37,12 +54,10 @@ const TIMEOUT = 5000; // 5s timeout — fail fast for external API calls
 export async function getCountryInfo(countryName) {
     try {
         const baseUrl = process.env.REST_COUNTRIES_URL || 'https://restcountries.com/v3.1';
-        const response = await axios.get(`${baseUrl}/name/${encodeURIComponent(countryName)}`, {
-            timeout: TIMEOUT,
-            params: { fields: 'name,region,subregion,currencies,timezones,capital,cca2' },
-        });
+        const params = new URLSearchParams({ fields: 'name,region,subregion,currencies,timezones,capital,cca2' });
+        const data = await fetchJSON(`${baseUrl}/name/${encodeURIComponent(countryName)}?${params}`);
 
-        const country = response.data?.[0];
+        const country = data?.[0];
         if (!country) return null;
 
         const currencies = country.currencies ? Object.keys(country.currencies) : [];
@@ -72,11 +87,11 @@ export async function getCountryInfo(countryName) {
 export async function getWorldTime(timezone) {
     try {
         const baseUrl = process.env.WORLD_TIME_API_URL || 'https://worldtimeapi.org/api';
-        const response = await axios.get(`${baseUrl}/timezone/${timezone}`, { timeout: TIMEOUT });
+        const data = await fetchJSON(`${baseUrl}/timezone/${timezone}`);
         return {
-            datetime: response.data?.datetime,
-            timezone: response.data?.timezone,
-            utcOffset: response.data?.utc_offset,
+            datetime: data?.datetime,
+            timezone: data?.timezone,
+            utcOffset: data?.utc_offset,
         };
     } catch (err) {
         logger.warn(`World Time API failed for "${timezone}": ${err.message}`);
@@ -93,11 +108,8 @@ export async function getWorldTime(timezone) {
  */
 export async function getPublicIP() {
     try {
-        const response = await axios.get('https://api.ipify.org', {
-            params: { format: 'json' },
-            timeout: TIMEOUT,
-        });
-        return response.data?.ip || null;
+        const data = await fetchJSON('https://api.ipify.org?format=json');
+        return data?.ip || null;
     } catch (err) {
         logger.warn('IPify API failed:', err.message);
         return null;
@@ -116,27 +128,24 @@ export async function getPublicIP() {
  */
 export async function getIPInfo(ip) {
     try {
-        if (!ip || ip === '127.0.0.1' || ip === '::1') return null; // skip localhost
+        if (!ip || ip === '127.0.0.1' || ip === '::1') return null;
 
-        const token = process.env.IPINFO_TOKEN; // optional — increases rate limit
-        const params = token ? { token } : {};
+        const token = process.env.IPINFO_TOKEN;
+        const url = token
+            ? `https://ipinfo.io/${ip}/json?token=${token}`
+            : `https://ipinfo.io/${ip}/json`;
 
-        const response = await axios.get(`https://ipinfo.io/${ip}/json`, {
-            params,
-            timeout: TIMEOUT,
-        });
-
-        const data = response.data;
-        if (!data || data.bogon) return null; // bogon = private/reserved IP
+        const data = await fetchJSON(url);
+        if (!data || data.bogon) return null;
 
         return {
             ip: data.ip,
             city: data.city || '',
             region: data.region || '',
             country: data.country || '',
-            org: data.org || '',       // ISP / ASN info
+            org: data.org || '',
             timezone: data.timezone || '',
-            loc: data.loc || '',       // "lat,lon" string
+            loc: data.loc || '',
         };
     } catch (err) {
         logger.warn(`IPinfo API failed for "${ip}": ${err.message}`);
@@ -162,12 +171,9 @@ export async function checkHoliday(countryCode, date) {
         const day = String(date.getDate()).padStart(2, '0');
         const dateStr = `${year}-${month}-${day}`;
 
-        const response = await axios.get(
-            `https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode.toUpperCase()}`,
-            { timeout: TIMEOUT }
+        const holidays = await fetchJSON(
+            `https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode.toUpperCase()}`
         );
-
-        const holidays = response.data;
         if (!Array.isArray(holidays)) return { isHoliday: false, holidays: [] };
 
         const matching = holidays.filter((h) => h.date === dateStr);
@@ -191,11 +197,10 @@ export async function checkHoliday(countryCode, date) {
  */
 export async function getPublicHolidays(countryCode, year) {
     try {
-        const response = await axios.get(
-            `https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode.toUpperCase()}`,
-            { timeout: TIMEOUT }
+        const data = await fetchJSON(
+            `https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode.toUpperCase()}`
         );
-        return Array.isArray(response.data) ? response.data : null;
+        return Array.isArray(data) ? data : null;
     } catch (err) {
         logger.warn(`Nager.Date getPublicHolidays failed for "${countryCode}/${year}": ${err.message}`);
         return null;
@@ -214,21 +219,16 @@ export async function getPublicHolidays(countryCode, year) {
  */
 export async function validateEmail(email) {
     try {
-        const response = await axios.get('https://api.eva.pingutil.com/email', {
-            params: { email },
-            timeout: TIMEOUT,
-        });
-
-        const data = response.data?.data;
-        if (!data) return null;
-
+        const data = await fetchJSON(`https://api.eva.pingutil.com/email?email=${encodeURIComponent(email)}`);
+        const d = data?.data;
+        if (!d) return null;
         return {
-            valid: data.valid_syntax && data.deliverable,
-            validSyntax: data.valid_syntax,
-            deliverable: data.deliverable,
-            disposable: data.disposable,
-            catchAll: data.catch_all,
-            domain: data.domain,
+            valid: d.valid_syntax && d.deliverable,
+            validSyntax: d.valid_syntax,
+            deliverable: d.deliverable,
+            disposable: d.disposable,
+            catchAll: d.catch_all,
+            domain: d.domain,
         };
     } catch (err) {
         logger.warn(`EVA email validation failed for "${email}": ${err.message}`);
@@ -247,18 +247,12 @@ export async function validateEmail(email) {
  */
 export async function checkDisposableEmail(email) {
     try {
-        const response = await axios.get('https://www.disify.com/api/email', {
-            params: { email },
-            timeout: TIMEOUT,
-        });
-
-        const data = response.data;
+        const data = await fetchJSON(`https://www.disify.com/api/email?email=${encodeURIComponent(email)}`);
         if (!data) return null;
-
         return {
             disposable: data.disposable === true,
-            format: data.format,       // true if email format is valid
-            dns: data.dns,             // true if domain has valid DNS
+            format: data.format,
+            dns: data.dns,
             domain: data.domain || '',
         };
     } catch (err) {
@@ -285,29 +279,24 @@ export async function checkEmailBreaches(email) {
             return null;
         }
 
-        const response = await axios.get(
-            `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(email)}`,
+        const data = await fetchJSON(
+            `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(email)}?truncateResponse=true`,
             {
                 headers: {
                     'hibp-api-key': apiKey,
                     'User-Agent': 'LexAI-Contract-Platform',
                 },
-                params: { truncateResponse: true },
-                timeout: TIMEOUT,
             }
         );
 
-        const breaches = response.data;
-        if (!Array.isArray(breaches)) return { breached: false, breachCount: 0, breaches: [] };
-
+        const breaches = Array.isArray(data) ? data : [];
         return {
             breached: breaches.length > 0,
             breachCount: breaches.length,
             breaches: breaches.map((b) => b.Name),
         };
     } catch (err) {
-        // 404 = email not found in any breach (this is the happy path)
-        if (err.response?.status === 404) {
+        if (err.message.includes('404')) {
             return { breached: false, breachCount: 0, breaches: [] };
         }
         logger.warn(`HIBP breach check failed for email: ${err.message}`);
@@ -327,18 +316,14 @@ export async function checkEmailBreaches(email) {
  */
 export async function getEmailReputation(email) {
     try {
-        const response = await axios.get(`https://emailrep.io/${encodeURIComponent(email)}`, {
+        const data = await fetchJSON(`https://emailrep.io/${encodeURIComponent(email)}`, {
             headers: { 'User-Agent': 'LexAI-Contract-Platform' },
-            timeout: TIMEOUT,
         });
-
-        const data = response.data;
         if (!data) return null;
-
         return {
-            reputation: data.reputation,       // "high", "medium", "low", "none"
+            reputation: data.reputation,
             suspicious: data.suspicious,
-            references: data.references,       // number of sources that have seen this email
+            references: data.references,
             details: {
                 maliciousActivity: data.details?.malicious_activity,
                 spamActivity: data.details?.spam,
@@ -366,54 +351,26 @@ export async function getEmailReputation(email) {
  */
 export async function getExchangeRate(from, to) {
     try {
-        const response = await axios.get('https://api.frankfurter.app/latest', {
-            params: { from: from.toUpperCase(), to: to.toUpperCase() },
-            timeout: TIMEOUT,
-        });
-
-        const data = response.data;
+        const data = await fetchJSON(
+            `https://api.frankfurter.app/latest?from=${from.toUpperCase()}&to=${to.toUpperCase()}`
+        );
         const rate = data?.rates?.[to.toUpperCase()];
         if (!rate) return null;
-
-        return {
-            from: data.base,
-            to: to.toUpperCase(),
-            rate,
-            date: data.date,
-        };
+        return { from: data.base, to: to.toUpperCase(), rate, date: data.date };
     } catch (err) {
         logger.warn(`Frankfurter exchange rate failed (${from}→${to}): ${err.message}`);
         return null;
     }
 }
 
-/**
- * Get exchange rates from a base currency to multiple targets.
- *
- * @param {string} base - Base currency code (e.g., "USD")
- * @param {string[]} targets - Array of target currency codes (e.g., ["EUR", "GBP", "JPY"])
- * @returns {Promise<object|null>} { base, date, rates: { EUR: 0.92, ... } } or null
- */
 export async function getExchangeRates(base, targets = []) {
     try {
-        const params = { from: base.toUpperCase() };
-        if (targets.length > 0) {
-            params.to = targets.map((t) => t.toUpperCase()).join(',');
-        }
+        const params = new URLSearchParams({ from: base.toUpperCase() });
+        if (targets.length > 0) params.set('to', targets.map((t) => t.toUpperCase()).join(','));
 
-        const response = await axios.get('https://api.frankfurter.app/latest', {
-            params,
-            timeout: TIMEOUT,
-        });
-
-        const data = response.data;
+        const data = await fetchJSON(`https://api.frankfurter.app/latest?${params}`);
         if (!data?.rates) return null;
-
-        return {
-            base: data.base,
-            date: data.date,
-            rates: data.rates,
-        };
+        return { base: data.base, date: data.date, rates: data.rates };
     } catch (err) {
         logger.warn(`Frankfurter exchange rates failed for base "${base}": ${err.message}`);
         return null;

@@ -12,7 +12,6 @@
  * safe defaults so the rest of the app never crashes on bad AI output.
  */
 
-import axios from 'axios';
 import env from '../config/env.js';
 import logger from '../utils/logger.js';
 
@@ -55,49 +54,55 @@ export async function analyzeContract(content) {
 async function callOpenRouter(content, model, attempt = 1) {
     const startTime = Date.now();
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+
     try {
-        const response = await axios.post(
-            `${env.OPENROUTER_BASE_URL}/chat/completions`,
-            {
+        const response = await fetch(`${env.OPENROUTER_BASE_URL}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://lexai.io',
+                'X-Title': 'LexAI Contract Analysis',
+            },
+            body: JSON.stringify({
                 model,
                 messages: [
                     { role: 'system', content: buildSystemPrompt() },
                     { role: 'user', content: buildUserPrompt(content) },
                 ],
-                temperature: 0.2,    // Low temperature for consistent, deterministic output
+                temperature: 0.2,
                 max_tokens: 4096,
-                response_format: { type: 'json_object' }, // Force JSON output from the LLM
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'HTTP-Referer': 'https://lexai.io',
-                    'X-Title': 'LexAI Contract Analysis',
-                },
-                timeout: 60000, // 60s timeout — LLM calls can be slow
-            }
-        );
+                response_format: { type: 'json_object' },
+            }),
+            signal: controller.signal,
+        });
 
-        const rawContent = response.data?.choices?.[0]?.message?.content;
+        clearTimeout(timer);
+
+        if (!response.ok) {
+            const status = response.status;
+            if ((status === 429 || status >= 500) && attempt < MAX_RETRIES) {
+                const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+                logger.warn(`OpenRouter ${status} error. Retry ${attempt}/${MAX_RETRIES} in ${delay}ms`);
+                await sleep(delay);
+                return callOpenRouter(content, model, attempt + 1);
+            }
+            throw new Error(`OpenRouter responded with HTTP ${status}`);
+        }
+
+        const data = await response.json();
+        const rawContent = data?.choices?.[0]?.message?.content;
         if (!rawContent) throw new Error('Empty response from AI model');
 
-        // Parse and validate the structured JSON response
         const parsed = parseAIResponse(rawContent);
-        parsed.tokensUsed = response.data?.usage?.total_tokens || 0;
+        parsed.tokensUsed = data?.usage?.total_tokens || 0;
         parsed.processingTimeMs = Date.now() - startTime;
 
         return parsed;
     } catch (err) {
-        // Retry on rate limit (429) or server errors (500+) with exponential backoff
-        const status = err.response?.status;
-        if ((status === 429 || status >= 500) && attempt < MAX_RETRIES) {
-            const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
-            logger.warn(`OpenRouter ${status} error. Retry ${attempt}/${MAX_RETRIES} in ${delay}ms`);
-            await sleep(delay);
-            return callOpenRouter(content, model, attempt + 1);
-        }
-
+        clearTimeout(timer);
         throw err;
     }
 }
@@ -227,10 +232,17 @@ export async function explainDiff(diffText, contractTitle) {
 Diff:
 ${diffText}`;
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+
     try {
-        const response = await axios.post(
-            `${env.OPENROUTER_BASE_URL}/chat/completions`,
-            {
+        const response = await fetch(`${env.OPENROUTER_BASE_URL}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
                 model: diffModel,
                 messages: [
                     { role: 'system', content: 'You are a legal contract analyst. Return only valid JSON. Label all output as AI analysis, not legal advice.' },
@@ -238,19 +250,19 @@ ${diffText}`;
                 ],
                 temperature: 0.2,
                 max_tokens: 2048,
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-                    'Content-Type': 'application/json',
-                },
-                timeout: 60000,
-            }
-        );
+            }),
+            signal: controller.signal,
+        });
 
-        const rawContent = response.data?.choices?.[0]?.message?.content;
+        clearTimeout(timer);
+
+        if (!response.ok) throw new Error(`OpenRouter responded with HTTP ${response.status}`);
+
+        const data = await response.json();
+        const rawContent = data?.choices?.[0]?.message?.content;
         return parseAIResponse(rawContent);
     } catch (err) {
+        clearTimeout(timer);
         logger.error('Diff AI explanation failed:', err.message);
         throw new Error(`AI diff explanation failed: ${err.message}`);
     }
