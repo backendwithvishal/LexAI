@@ -116,7 +116,7 @@ function buildSystemPrompt() {
 function buildUserPrompt(content) {
     // Cap at 15k chars to stay within model context windows
     const truncated = content.length > 15000
-        ? content.substring(0, 15000) + '\n\n[Content truncated for analysis]'
+        ? `${content.substring(0, 15000)  }\n\n[Content truncated for analysis]`
         : content;
 
     return `Analyze the following contract and return ONLY a JSON object with this exact structure:
@@ -252,7 +252,7 @@ ${diffText}`;
         return parseAIResponse(rawContent);
     } catch (err) {
         logger.error('Diff AI explanation failed:', err.message);
-        throw new Error('AI diff explanation failed: ' + err.message);
+        throw new Error(`AI diff explanation failed: ${err.message}`);
     }
 }
 
@@ -260,5 +260,5 @@ ${diffText}`;
  * Promise-based sleep helper for retry backoff.
  */
 function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => { setTimeout(resolve, ms); });
 }

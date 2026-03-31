@@ -4,10 +4,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
+      target: ${BUILD_TARGET:-production}  # Allow override: 'builder' for dev
     container_name: lexai-api
+    command: ${API_COMMAND:-node server.js}  # Allow override: 'npx nodemon server.js' for dev
     ports:
-      - "3100:3100"
+      - "${API_PORT:-3100}:3100"
+      - "${DEBUG_PORT:-9229}:9229"  # Node.js debugger (only when DEBUG_PORT set)
+    volumes:
+      # Development volumes (only when API_VOLUMES is set)
+      - ${API_VOLUMES:-}
     environment:
       # ── App ──
       NODE_ENV: ${NODE_ENV}
@@ -95,8 +100,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.worker
-      target: production
+      target: ${BUILD_TARGET:-production}
     container_name: lexai-worker
+    command: ${WORKER_COMMAND:-node worker.js}
+    volumes:
+      # Development volumes (only when WORKER_VOLUMES is set)
+      - ${WORKER_VOLUMES:-}
     environment:
       # ── App ──
       NODE_ENV: ${NODE_ENV}
@@ -156,7 +165,7 @@ services:
     image: mongo:7
     container_name: lexai-mongodb
     ports:
-      - "127.0.0.1:27018:27017"
+      - "${MONGO_PORT:-127.0.0.1:27018:27017}"  # Allow override: '27017:27017' for dev
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -174,7 +183,7 @@ services:
     image: redis:7-alpine
     container_name: lexai-redis
     ports:
-      - "127.0.0.1:6380:6379"
+      - "${REDIS_EXPOSE_PORT:-127.0.0.1:6380:6379}"  # Allow override: '6379:6379' for dev
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -193,8 +202,8 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: lexai-rabbitmq
     ports:
-      - "127.0.0.1:5672:5672"
-      - "127.0.0.1:15672:15672"
+      - "${RABBITMQ_PORT:-127.0.0.1:5672:5672}"      # Allow override: '5672:5672' for dev
+      - "${RABBITMQ_MGMT_PORT:-127.0.0.1:15672:15672}"  # Allow override: '15672:15672' for dev
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest

@@ -89,7 +89,7 @@ export const register = Joi.object({
         .trim()
         .min(2)
         .max(100)
-        .pattern(/^[^\u0000-\u001F\u007F-\u009F]+$/)  // no invisible control characters
+        .pattern(/^[^\x00-\x1F\x7F-\x9F]+$/)  // eslint-disable-line no-control-regex -- intentional: block invisible control chars
         .required()
         .messages({
             'any.required': 'Name is required.',

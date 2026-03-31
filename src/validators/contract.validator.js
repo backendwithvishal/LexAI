@@ -10,12 +10,9 @@
 
 import Joi from 'joi';
 
-// Reusable ObjectId validator — 24 hex characters = valid MongoDB ObjectId
-const objectId = Joi.string().hex().length(24);
-
 export const uploadContract = Joi.object({
     title: Joi.string().trim().min(3).max(300)
-        .pattern(/^[^\u0000-\u001F\u007F-\u009F<>]+$/, 'no control chars or HTML')  // block XSS in title
+        .pattern(/^[^\x00-\x1F\x7F-\x9F<>]+$/, 'no control chars or HTML')  // eslint-disable-line no-control-regex -- intentional: block XSS in title
         .required(),
     type: Joi.string().valid('NDA', 'Vendor', 'Employment', 'SaaS', 'Other').default('Other'),
     // Tags can arrive as an array (JSON) or a single string from multipart forms
@@ -30,7 +27,7 @@ export const uploadContract = Joi.object({
 
 export const updateContract = Joi.object({
     title: Joi.string().trim().min(3).max(300)
-        .pattern(/^[^\u0000-\u001F\u007F-\u009F<>]+$/, 'no control chars or HTML')
+        .pattern(/^[^\x00-\x1F\x7F-\x9F<>]+$/, 'no control chars or HTML')  // eslint-disable-line no-control-regex -- intentional: block XSS in title
         .optional(),
     type: Joi.string().valid('NDA', 'Vendor', 'Employment', 'SaaS', 'Other').optional(),
     tags: Joi.array().items(Joi.string().trim().lowercase().max(50)).max(20).optional(),

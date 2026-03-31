@@ -11,11 +11,13 @@ import logger from '../utils/logger.js';
 
 /**
  * Attach a unique request ID to every request.
- * Respects existing X-Request-ID headers from load balancers.
+ * Respects existing X-Request-ID headers from load balancers or API gateways.
+ * The ID is also stored on res.locals so it's accessible in templates/views.
  */
 export function attachRequestId(req, res, next) {
     req.requestId = req.headers['x-request-id'] || uuidv4();
     res.set('X-Request-ID', req.requestId);
+    res.locals.requestId = req.requestId;  // Available in templates
     next();
 }
 

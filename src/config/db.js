@@ -56,7 +56,7 @@ export async function connectDB(uri, attempt = 1) {
         // Linear backoff: 3s, 6s, 9s, 12s...
         const delay = RETRY_DELAY_MS * attempt;
         logger.warn(`MongoDB connection attempt ${attempt} failed. Retrying in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        await new Promise((resolve) => { setTimeout(resolve, delay); });
         return connectDB(uri, attempt + 1);
     }
 }

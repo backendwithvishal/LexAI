@@ -1,0 +1,43 @@
+# Development overrides — automatically merged by Docker Compose when present.
+# This file is NOT used in production. It adds hot-reload, debug ports,
+# and relaxed settings that make local development faster.
+#
+# Usage: docker-compose up  (override is applied automatically)
+# To skip: docker-compose -f docker-compose.yml up
+
+services:
+  api:
+    build:
+      target: builder          # Use builder stage (includes devDependencies)
+    command: npx nodemon server.js
+    environment:
+      NODE_ENV: development
+    volumes:
+      - .:/app                 # Mount source for hot-reload
+      - /app/node_modules      # Keep container node_modules (don't overwrite with host)
+    ports:
+      - "3100:3100"
+      - "9229:9229"            # Node.js debugger port (--inspect)
+
+  worker:
+    build:
+      target: builder
+    command: npx nodemon worker.js
+    environment:
+      NODE_ENV: development
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  mongodb:
+    ports:
+      - "27017:27017"          # Expose directly (no 127.0.0.1 restriction) for local tools
+
+  redis:
+    ports:
+      - "6379:6379"            # Expose for local Redis clients (RedisInsight, etc.)
+
+  rabbitmq:
+    ports:
+      - "5672:5672"
+      - "15672:15672"          # Management UI: http://localhost:15672 (guest/guest)

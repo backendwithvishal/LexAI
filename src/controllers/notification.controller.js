@@ -9,8 +9,7 @@
  */
 
 import Notification from '../models/Notification.model.js';
-import { sendSuccess } from '../utils/apiResponse.js';
-import { buildPaginationMeta } from '../utils/apiResponse.js';
+import { sendSuccess, buildPaginationMeta } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 
 /**

@@ -74,7 +74,7 @@ class FileScanner {
         
         fileInventory.files.push({
           path: filePath,
-          relativePath: relativePath,
+          relativePath,
           type: this.classifyFile(filePath),
           size: stats.size,
           lastModified: stats.mtime

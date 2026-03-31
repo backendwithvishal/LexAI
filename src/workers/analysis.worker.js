@@ -28,9 +28,9 @@ const JOB_TIMEOUT_MS = 90000; // 90 seconds — failsafe if AI API hangs
 function withTimeout(promise, ms, jobId) {
     return Promise.race([
         promise,
-        new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Job ${jobId} timed out after ${ms / 1000}s`)), ms)
-        ),
+        new Promise((_, reject) => {
+            setTimeout(() => reject(new Error(`Job ${jobId} timed out after ${ms / 1000}s`)), ms);
+        }),
     ]);
 }
 
@@ -68,7 +68,7 @@ export async function startAnalysisWorker() {
 
 /** Process a single analysis job. */
 async function processAnalysisJob(job, channel, msg) {
-    const { jobId, contractId, analysisId, orgId, userId, content, contentHash, version, retryCount = 0 } = job;
+    const { jobId, contractId, analysisId, orgId, content, contentHash, version, retryCount = 0 } = job;
     const redis = getRedisClient();
     const startTime = Date.now();
 

@@ -25,7 +25,6 @@ import AppError from '../utils/AppError.js';
 
 // Use the shared constant so queue names are always in sync across the codebase
 const ANALYSIS_QUEUE = QUEUES.ANALYSIS;
-const CACHE_TTL = 86400; // 24 hours — cached results expire after a day
 const LOCK_TTL = 300;    // 5 minutes — lock expires if worker crashes mid-job
 
 /**

@@ -9,7 +9,7 @@ import Joi from 'joi';
 
 export const createOrg = Joi.object({
     name: Joi.string().trim().min(2).max(200)
-        .pattern(/^[^\u0000-\u001F\u007F-\u009F<>]+$/, 'no control chars or HTML')
+        .pattern(/^[^\x00-\x1F\x7F-\x9F<>]+$/, 'no control chars or HTML')  // eslint-disable-line no-control-regex -- intentional: block XSS in org name
         .required()
         .messages({ 'any.required': 'Organization name is required' }),
 });
@@ -24,7 +24,7 @@ export const acceptInvite = Joi.object({
     token: Joi.string().trim().min(32).max(512).required(),
     // name and password are only required for new users (not existing users accepting an invite)
     name: Joi.string().trim().min(2).max(100)
-        .pattern(/^[^\u0000-\u001F\u007F-\u009F<>]+$/, 'no control chars or HTML')
+        .pattern(/^[^\x00-\x1F\x7F-\x9F<>]+$/, 'no control chars or HTML')  // eslint-disable-line no-control-regex -- intentional
         .optional(),
     password: Joi.string().min(8).max(128)
         // Same pattern as auth.validator.js — must match what's accepted at registration
@@ -42,6 +42,6 @@ export const updateMemberRole = Joi.object({
 
 export const updateOrg = Joi.object({
     name: Joi.string().trim().min(2).max(200)
-        .pattern(/^[^\u0000-\u001F\u007F-\u009F<>]+$/, 'no control chars or HTML')
+        .pattern(/^[^\x00-\x1F\x7F-\x9F<>]+$/, 'no control chars or HTML')  // eslint-disable-line no-control-regex -- intentional
         .optional(),
 }).min(1); // Require at least one field — prevents empty PATCH requests

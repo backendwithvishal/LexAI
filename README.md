@@ -132,6 +132,46 @@ The auditor generates:
 - **Cache**: Redis
 - **Real-time**: Socket.io
 
+## Docker Setup
+
+The project uses a consolidated `docker-compose.yml` that supports both development and production modes through environment variables.
+
+### Production Mode (Default)
+```bash
+# Uses production builds, secure port bindings, no volumes
+docker-compose up -d
+```
+
+### Development Mode
+```bash
+# Uses development builds with hot-reload, exposed ports, and volumes
+docker-compose --env-file .env.dev up -d
+```
+
+### Environment Variables for Development
+Create `.env.dev` with:
+```bash
+BUILD_TARGET=builder
+API_COMMAND=npx nodemon server.js
+WORKER_COMMAND=npx nodemon worker.js
+API_PORT=3100:3100
+DEBUG_PORT=9229:9229
+MONGO_PORT=27017:27017
+REDIS_EXPOSE_PORT=6379:6379
+RABBITMQ_PORT=5672:5672
+RABBITMQ_MGMT_PORT=15672:15672
+API_VOLUMES=./:/app
+WORKER_VOLUMES=./:/app
+NODE_ENV=development
+```
+
+### Services
+- **API**: `http://localhost:3100` (dev: `http://localhost:3100`)
+- **MongoDB**: `localhost:27017` (dev only, secured in prod)
+- **Redis**: `localhost:6379` (dev only, secured in prod)
+- **RabbitMQ**: `localhost:5672` (dev only, secured in prod)
+- **RabbitMQ Management**: `http://localhost:15672` (dev only)
+
 ## Development
 
 ```bash

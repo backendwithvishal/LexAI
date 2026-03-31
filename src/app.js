@@ -15,6 +15,7 @@ import 'express-async-errors';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import compression from 'compression';
 import mongoSanitize from 'express-mongo-sanitize';
 import cookieParser from 'cookie-parser';
 import hpp from 'hpp';
@@ -85,6 +86,18 @@ export default function createApp() {
         allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'],
         exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
         maxAge: 86400, // Cache preflight for 24h
+    }));
+
+    // ─── Response Compression ───────────────────────────────────────
+    // Gzip compress responses > 1kb — reduces bandwidth significantly
+    app.use(compression({
+        level: 6,           // Balanced speed vs compression ratio
+        threshold: 1024,    // Only compress responses > 1kb
+        filter: (req, res) => {
+            // Don't compress if client explicitly opts out
+            if (req.headers['x-no-compression']) return false;
+            return compression.filter(req, res);
+        },
     }));
 
     // ─── NoSQL Injection Prevention ─────────────────────────────────
