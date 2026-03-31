@@ -1359,6 +1359,341 @@ Authorization: Bearer {{access_token}}
 
 ---
 
+### GET — Public Holidays for Year _(🔒 Protected)_
+
+```
+GET {{base_url}}/enrichment/holidays/US/2026
+```
+
+Replace `US` with any 2-letter ISO country code. Replace `2026` with any year (2000–2100).
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "holidays": [
+      {
+        "date": "2026-01-01",
+        "localName": "New Year's Day",
+        "name": "New Year's Day",
+        "countryCode": "US"
+      }
+    ],
+    "country": "US",
+    "year": 2026
+  }
+}
+```
+
+**Error Response (400 — invalid country code):**
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "Country must be a 2-letter ISO code (e.g., US, GB)." }
+}
+```
+
+**Error Response (400 — invalid year):**
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "Year must be a valid number between 2000 and 2100." }
+}
+```
+
+---
+
+### GET — IP Geolocation _(🔒 Protected)_
+
+```
+GET {{base_url}}/enrichment/ip/8.8.8.8
+```
+
+Replace `8.8.8.8` with any valid IPv4 or IPv6 address. Useful for flagging logins from unexpected locations.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "ipInfo": {
+      "ip": "8.8.8.8",
+      "city": "Mountain View",
+      "region": "California",
+      "country": "US",
+      "org": "AS15169 Google LLC",
+      "timezone": "America/Los_Angeles"
+    }
+  }
+}
+```
+
+**Error Response (400 — invalid IP):**
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "Invalid IP address format." }
+}
+```
+
+---
+
+### GET — Validate Email _(🔒 Protected)_
+
+```
+GET {{base_url}}/enrichment/email/validate?email=user@example.com
+```
+
+Validates email syntax, MX records, and checks if it is a disposable address (EVA + Disify).
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (required):**
+| Param   | Description              | Example              |
+|---------|--------------------------|----------------------|
+| `email` | Email address to validate | `user@example.com`   |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "email": "user@example.com",
+    "validation": {
+      "valid": true,
+      "mx_records": true
+    },
+    "disposable": {
+      "disposable": false,
+      "domain": "example.com"
+    }
+  }
+}
+```
+
+**Error Response (400 — missing/invalid email):**
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "A valid email address is required." }
+}
+```
+
+---
+
+### GET — Email Reputation _(🔒 Protected)_
+
+```
+GET {{base_url}}/enrichment/email/reputation?email=user@example.com
+```
+
+Returns threat/risk reputation scoring for an email address (EmailRep).
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (required):**
+| Param   | Description              | Example              |
+|---------|--------------------------|----------------------|
+| `email` | Email address to check    | `user@example.com`   |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "email": "user@example.com",
+    "reputation": {
+      "reputation": "high",
+      "suspicious": false,
+      "references": 15,
+      "details": {
+        "blacklisted": false,
+        "malicious_activity": false,
+        "credentials_leaked": false,
+        "data_breach": false
+      }
+    }
+  }
+}
+```
+
+**Fallback Response (200 — service unavailable):**
+```json
+{
+  "success": true,
+  "data": {
+    "email": "user@example.com",
+    "reputation": { "note": "Reputation service unavailable" }
+  }
+}
+```
+
+---
+
+### GET — Email Breach Check _(🔒 Protected)_
+
+```
+GET {{base_url}}/enrichment/email/breaches?email=user@example.com
+```
+
+Checks if an email has appeared in known data breaches via HaveIBeenPwned (HIBP). Requires `HIBP_API_KEY` to be configured in `.env`.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (required):**
+| Param   | Description              | Example              |
+|---------|--------------------------|----------------------|
+| `email` | Email address to check    | `user@example.com`   |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "email": "user@example.com",
+    "breaches": [
+      {
+        "Name": "ExampleBreach",
+        "BreachDate": "2023-01-15",
+        "Description": "..."
+      }
+    ]
+  }
+}
+```
+
+**Fallback Response (200 — no API key configured):**
+```json
+{
+  "success": true,
+  "data": {
+    "email": "user@example.com",
+    "breaches": { "note": "Breach check unavailable — HIBP_API_KEY may not be configured." }
+  }
+}
+```
+
+---
+
+### GET — Currency Exchange Rate _(🔒 Protected)_
+
+```
+GET {{base_url}}/enrichment/currency/rate?from=USD&to=EUR
+```
+
+Returns the latest exchange rate between two currencies (Frankfurter / ECB data).
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (required):**
+| Param  | Description                  | Example |
+|--------|------------------------------|---------|
+| `from` | Source currency (3-letter ISO) | `USD`   |
+| `to`   | Target currency (3-letter ISO) | `EUR`   |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "exchange": {
+      "base": "USD",
+      "target": "EUR",
+      "rate": 0.9234,
+      "date": "2026-03-31"
+    }
+  }
+}
+```
+
+**Error Response (400 — missing params):**
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "Both \"from\" and \"to\" currency codes are required (e.g., USD, EUR)." }
+}
+```
+
+**Error Response (400 — invalid code):**
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "Currency codes must be 3-letter ISO codes (e.g., USD, EUR, GBP)." }
+}
+```
+
+---
+
+### GET — Multiple Currency Exchange Rates _(🔒 Protected)_
+
+```
+GET {{base_url}}/enrichment/currency/rates?base=USD&targets=EUR,GBP,JPY
+```
+
+Returns exchange rates from a base currency to multiple target currencies.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters:**
+| Param     | Required | Description                                      | Example         |
+|-----------|----------|--------------------------------------------------|-----------------|
+| `base`    | Yes      | Base currency (3-letter ISO)                      | `USD`           |
+| `targets` | No       | Comma-separated target currencies. If omitted, returns all available rates. | `EUR,GBP,JPY`  |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "exchange": {
+      "base": "USD",
+      "date": "2026-03-31",
+      "rates": {
+        "EUR": 0.9234,
+        "GBP": 0.7891,
+        "JPY": 149.52
+      }
+    }
+  }
+}
+```
+
+**Error Response (400 — missing base):**
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "Base currency code is required (e.g., USD)." }
+}
+```
+
+---
+
 ## 🛡️ 9. Admin — `/api/v1/admin` ✅
 
 > All routes require `Authorization: Bearer {{admin_token}}` + **`role: admin`**.
@@ -1386,8 +1721,6 @@ Content-Type: application/json
 Copy `data.accessToken` → set as `admin_token` in your Postman environment.
 
 > ⚠️ Use `{{admin_token}}` (not `{{access_token}}`) for all admin endpoints so you don't overwrite your regular user token.
-
----
 
 ---
 
@@ -1642,7 +1975,7 @@ All errors follow this shape:
 ```
 
 | HTTP Code | Error Code          | Meaning                                    |
-|-----------|---------------------|--------------------------------------------|
+|-----------|---------------------|-------------------------------------------|
 | `400`     | `VALIDATION_ERROR`  | Request body failed Joi validation         |
 | `400`     | `FILE_TOO_LARGE`    | Uploaded file exceeds 5MB                  |
 | `400`     | `UPLOAD_ERROR`      | Unsupported file type or multer error      |
@@ -1668,21 +2001,113 @@ All errors follow this shape:
 4.  PATCH  /admin/users/{{user_id}}             ← Update role or status
 5.  GET    /admin/users                         ← List all users
 6.  GET    /admin/stats                         ← Platform stats
+7.  GET    /admin/queue/status                  ← RabbitMQ queue health
+8.  GET    /admin/audit-logs                    ← Global audit trail
 
 # ── Regular user flow ──────────────────────────────────────────────────────
-7.  POST   /auth/register                       ← Create account; copy otp from dev response
-8.  POST   /auth/verify-email                   ← Verify OTP
-9.  POST   /auth/login                          ← Copy access_token + user_id
-10. GET    /auth/sessions                       ← Copy a jti → session_jti
-11. POST   /orgs                                ← Create org; copy org_id
-12. POST   /contracts (file or JSON)            ← Upload; copy contract_id
-13. GET    /contracts                           ← List contracts
-14. GET    /contracts/{{contract_id}}           ← View single contract
-15. POST   /analyses                            ← Queue analysis; copy analysis_id
-16. GET    /analyses/{{analysis_id}}            ← Poll for result
-17. GET    /notifications/unread-count          ← Check badge count
-18. GET    /notifications                       ← View notifications; copy notification_id
-19. GET    /enrichment/country/India            ← Test enrichment
-20. DELETE /admin/users/{{user_id}}             ← (Admin) Deactivate user
-21. POST   /auth/logout                         ← Blacklist tokens
+9.  POST   /auth/register                       ← Create account; copy otp from dev response
+10. POST   /auth/verify-email                   ← Verify OTP
+11. POST   /auth/login                          ← Copy access_token + user_id
+12. GET    /users/me                            ← Get your profile
+13. PATCH  /users/me                            ← Update your name
+14. GET    /auth/sessions                       ← Copy a jti → session_jti
+15. POST   /orgs                                ← Create org; copy org_id
+16. GET    /orgs/{{org_id}}                     ← View org
+17. POST   /contracts (file or JSON)            ← Upload; copy contract_id
+18. GET    /contracts                           ← List contracts
+19. GET    /contracts/{{contract_id}}           ← View single contract
+20. PATCH  /contracts/{{contract_id}}           ← Update contract
+21. POST   /contracts/{{contract_id}}/versions  ← Upload new version
+22. GET    /contracts/{{contract_id}}/versions  ← List versions
+23. POST   /contracts/{{contract_id}}/compare   ← Compare two versions
+24. GET    /contracts/{{contract_id}}/audit     ← View audit trail
+25. POST   /analyses                            ← Queue analysis; copy analysis_id
+26. GET    /analyses/{{analysis_id}}            ← Poll for result
+27. GET    /analyses/contract/{{contract_id}}   ← All analyses for contract
+28. GET    /notifications/unread-count          ← Check badge count
+29. GET    /notifications                       ← View notifications; copy notification_id
+30. PATCH  /notifications/{{notification_id}}/read  ← Mark one as read
+31. PATCH  /notifications/read-all              ← Mark all as read
+
+# ── Enrichment APIs ───────────────────────────────────────────────────────
+32. GET    /enrichment/country/India            ← Country info
+33. GET    /enrichment/time/Asia/Kolkata        ← World time
+34. GET    /enrichment/holidays?country=IN&date=2026-03-15  ← Check specific holiday
+35. GET    /enrichment/holidays/US/2026         ← All holidays for a year
+36. GET    /enrichment/ip/8.8.8.8              ← IP geolocation
+37. GET    /enrichment/email/validate?email=user@example.com  ← Email validation
+38. GET    /enrichment/email/reputation?email=user@example.com ← Email reputation
+39. GET    /enrichment/email/breaches?email=user@example.com   ← Email breach check
+40. GET    /enrichment/currency/rate?from=USD&to=EUR           ← Single exchange rate
+41. GET    /enrichment/currency/rates?base=USD&targets=EUR,GBP ← Multiple rates
+
+# ── Cleanup ────────────────────────────────────────────────────────────────
+42. DELETE /contracts/{{contract_id}}           ← Delete contract (admin/manager)
+43. DELETE /auth/sessions/{{session_jti}}       ← Revoke specific session
+44. DELETE /auth/sessions                       ← Revoke all sessions
+45. DELETE /admin/users/{{user_id}}             ← (Admin) Deactivate user
+46. POST   /auth/logout                         ← Blacklist tokens
 ```
+
+---
+
+## 📊 Complete API Endpoint Summary
+
+| #  | Method   | URL                                              | Auth      | Description                        |
+|----|----------|--------------------------------------------------|-----------|------------------------------------|
+| 1  | `GET`    | `/health`                                        | None      | Health check                       |
+| 2  | `POST`   | `/api/v1/auth/register`                          | None      | Register new user                  |
+| 3  | `POST`   | `/api/v1/auth/verify-email`                      | None      | Verify email OTP                   |
+| 4  | `POST`   | `/api/v1/auth/resend-verification-email`         | None      | Resend OTP                         |
+| 5  | `POST`   | `/api/v1/auth/login`                             | None      | Login                              |
+| 6  | `POST`   | `/api/v1/auth/refresh-token`                     | Cookie    | Refresh access token               |
+| 7  | `POST`   | `/api/v1/auth/forgot-password`                   | None      | Send reset email                   |
+| 8  | `POST`   | `/api/v1/auth/reset-password`                    | None      | Reset password with token          |
+| 9  | `POST`   | `/api/v1/auth/logout`                            | Bearer    | Logout + blacklist tokens          |
+| 10 | `POST`   | `/api/v1/auth/change-password`                   | Bearer    | Change password                    |
+| 11 | `GET`    | `/api/v1/auth/sessions`                          | Bearer    | List active sessions               |
+| 12 | `DELETE` | `/api/v1/auth/sessions/:jti`                     | Bearer    | Revoke specific session            |
+| 13 | `DELETE` | `/api/v1/auth/sessions`                          | Bearer    | Revoke all sessions                |
+| 14 | `GET`    | `/api/v1/users/me`                               | Bearer    | Get my profile                     |
+| 15 | `PATCH`  | `/api/v1/users/me`                               | Bearer    | Update my profile                  |
+| 16 | `GET`    | `/api/v1/users/:id`                              | Admin     | Get user by ID                     |
+| 17 | `POST`   | `/api/v1/orgs`                                   | Bearer    | Create organization                |
+| 18 | `GET`    | `/api/v1/orgs/:orgId`                            | Bearer    | Get organization                   |
+| 19 | `PATCH`  | `/api/v1/orgs/:orgId`                            | Admin/Mgr | Update organization                |
+| 20 | `POST`   | `/api/v1/orgs/:orgId/invite`                     | Admin/Mgr | Invite member                      |
+| 21 | `POST`   | `/api/v1/orgs/:orgId/invite/accept`              | None      | Accept invitation                  |
+| 22 | `PATCH`  | `/api/v1/orgs/:orgId/members/:userId/role`       | Admin     | Change member role                 |
+| 23 | `DELETE` | `/api/v1/orgs/:orgId/members/:userId`            | Admin     | Remove member                      |
+| 24 | `POST`   | `/api/v1/contracts`                              | Bearer+Org| Upload contract (file or JSON)     |
+| 25 | `GET`    | `/api/v1/contracts`                              | Bearer+Org| List contracts                     |
+| 26 | `GET`    | `/api/v1/contracts/:id`                          | Bearer+Org| Get contract by ID                 |
+| 27 | `PATCH`  | `/api/v1/contracts/:id`                          | Bearer+Org| Update contract                    |
+| 28 | `DELETE` | `/api/v1/contracts/:id`                          | Admin/Mgr | Delete contract                    |
+| 29 | `POST`   | `/api/v1/contracts/:id/versions`                 | Bearer+Org| Upload new version                 |
+| 30 | `GET`    | `/api/v1/contracts/:id/versions`                 | Bearer+Org| List versions                      |
+| 31 | `POST`   | `/api/v1/contracts/:id/compare`                  | Bearer+Org| Compare versions                   |
+| 32 | `GET`    | `/api/v1/contracts/:id/audit`                    | Bearer+Org| Audit trail                        |
+| 33 | `POST`   | `/api/v1/analyses`                               | Bearer+Org| Request AI analysis                |
+| 34 | `GET`    | `/api/v1/analyses/:id`                           | Bearer+Org| Get analysis by ID                 |
+| 35 | `GET`    | `/api/v1/analyses/contract/:contractId`          | Bearer+Org| All analyses for contract          |
+| 36 | `GET`    | `/api/v1/notifications`                          | Bearer    | List notifications                 |
+| 37 | `GET`    | `/api/v1/notifications/unread-count`             | Bearer    | Get unread count                   |
+| 38 | `PATCH`  | `/api/v1/notifications/read-all`                 | Bearer    | Mark all as read                   |
+| 39 | `PATCH`  | `/api/v1/notifications/:id/read`                 | Bearer    | Mark one as read                   |
+| 40 | `GET`    | `/api/v1/enrichment/country/:name`               | Bearer    | Country info                       |
+| 41 | `GET`    | `/api/v1/enrichment/time/:timezone`              | Bearer    | World time                         |
+| 42 | `GET`    | `/api/v1/enrichment/holidays`                    | Bearer    | Check holiday by date              |
+| 43 | `GET`    | `/api/v1/enrichment/holidays/:country/:year`     | Bearer    | All holidays for a year            |
+| 44 | `GET`    | `/api/v1/enrichment/ip/:ip`                      | Bearer    | IP geolocation                     |
+| 45 | `GET`    | `/api/v1/enrichment/email/validate`              | Bearer    | Email validation                   |
+| 46 | `GET`    | `/api/v1/enrichment/email/reputation`            | Bearer    | Email reputation                   |
+| 47 | `GET`    | `/api/v1/enrichment/email/breaches`              | Bearer    | Email breach check (HIBP)          |
+| 48 | `GET`    | `/api/v1/enrichment/currency/rate`               | Bearer    | Single exchange rate               |
+| 49 | `GET`    | `/api/v1/enrichment/currency/rates`              | Bearer    | Multiple exchange rates            |
+| 50 | `GET`    | `/api/v1/admin/stats`                            | Admin     | Platform stats                     |
+| 51 | `GET`    | `/api/v1/admin/queue/status`                     | Admin     | Queue status                       |
+| 52 | `GET`    | `/api/v1/admin/users`                            | Admin     | List all users                     |
+| 53 | `POST`   | `/api/v1/admin/users`                            | Admin     | Create user (pre-verified)         |
+| 54 | `PATCH`  | `/api/v1/admin/users/:id`                        | Admin     | Update user                        |
+| 55 | `DELETE` | `/api/v1/admin/users/:id`                        | Admin     | Deactivate user                    |
+| 56 | `GET`    | `/api/v1/admin/audit-logs`                       | Admin     | Global audit trail                 |
