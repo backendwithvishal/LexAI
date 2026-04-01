@@ -15,7 +15,7 @@ services:
       API_VERSION: ${API_VERSION}
 
       # ── MongoDB ──
-      MONGO_URI: mongodb://mongodb:27017/lexai
+      MONGO_URI: ${MONGO_URI}
 
       # ── Redis ──
       REDIS_HOST: redis
@@ -103,7 +103,7 @@ services:
       NODE_ENV: ${NODE_ENV}
 
       # ── MongoDB ──
-      MONGO_URI: mongodb://mongodb:27017/lexai
+      MONGO_URI: ${MONGO_URI}
 
       # ── Redis ──
       REDIS_HOST: redis
