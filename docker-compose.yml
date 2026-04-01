@@ -14,7 +14,7 @@ services:
       PORT: ${PORT}
       API_VERSION: ${API_VERSION}
 
-      # ── MongoDB ──
+      # ── MongoDB (external) ──
       MONGO_URI: ${MONGO_URI}
 
       # ── Redis ──
@@ -73,8 +73,6 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
 
     depends_on:
-      mongodb:
-        condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
@@ -102,7 +100,7 @@ services:
       # ── App ──
       NODE_ENV: ${NODE_ENV}
 
-      # ── MongoDB ──
+      # ── MongoDB (external) ──
       MONGO_URI: ${MONGO_URI}
 
       # ── Redis ──
@@ -141,8 +139,6 @@ services:
       OTP_EXPIRY: ${OTP_EXPIRY}
 
     depends_on:
-      mongodb:
-        condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
@@ -151,24 +147,6 @@ services:
       - lexai-network
     restart: unless-stopped
     stop_grace_period: 30s
-
-  # ─── MongoDB ──────────────────────────────────────────────────
-  mongodb:
-    image: mongo:7
-    container_name: lexai-mongodb
-    ports:
-      - "127.0.0.1:27018:27017"
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - lexai-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      start_period: 30s
-      retries: 5
 
   # ─── Redis ────────────────────────────────────────────────────
   redis:
@@ -216,6 +194,5 @@ networks:
     driver: bridge
 
 volumes:
-  mongodb_data:
   redis_data:
   rabbitmq_data:
