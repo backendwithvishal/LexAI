@@ -1,0 +1,227 @@
+{
+  "auth": {
+    "register": {
+      "name": "Vishal Sanam",
+      "email": "vishal@example.com",
+      "password": "SecurePass@123"
+    },
+    "verifyEmail": {
+      "email": "vishal@example.com",
+      "otp": "482910"
+    },
+    "resendVerificationEmail": {
+      "email": "vishal@example.com"
+    },
+    "login": {
+      "email": "vishal@example.com",
+      "password": "SecurePass@123"
+    },
+    "forgotPassword": {
+      "email": "vishal@example.com"
+    },
+    "resetPassword": {
+      "token": "64-character-hex-token-here",
+      "password": "NewSecurePass@456"
+    },
+    "changePassword": {
+      "currentPassword": "SecurePass@123",
+      "newPassword": "NewSecurePass@456"
+    },
+    "adminLogin": {
+      "email": "admin@lexai.io",
+      "password": "Admin112233"
+    }
+  },
+  "users": {
+    "updateProfile": {
+      "name": "Vishal S."
+    }
+  },
+  "orgs": {
+    "create": {
+      "name": "LexAI Legal Ltd"
+    },
+    "update": {
+      "name": "LexAI Legal Group"
+    },
+    "invite": {
+      "email": "newmember@example.com",
+      "role": "viewer"
+    },
+    "acceptInvite": {
+      "token": "invitation-token-here",
+      "name": "New Member",
+      "password": "Welcome@123"
+    },
+    "changeRole": {
+      "role": "manager"
+    }
+  },
+  "contracts": {
+    "uploadFile": {
+      "formData": {
+        "file": "Select a .pdf, .docx, or .txt file (max 5MB)",
+        "title": "Service Agreement 2026",
+        "type": "NDA",
+        "tags": "[\"legal\",\"2026\"]"
+      }
+    },
+    "uploadText": {
+      "title": "Simple NDA Agreement",
+      "type": "NDA",
+      "content": "This Non-Disclosure Agreement is entered into as of March 1, 2026, between Party A and Party B. Both parties agree to keep all shared information confidential...",
+      "tags": ["nda", "confidential"],
+      "expiryDate": "2027-03-01",
+      "jurisdiction": "India"
+    },
+    "list": {
+      "queryParams": {
+        "page": 1,
+        "limit": 10,
+        "type": "NDA",
+        "order": "desc"
+      }
+    },
+    "update": {
+      "title": "Updated NDA Agreement",
+      "type": "NDA",
+      "tags": ["updated", "nda"],
+      "alertDays": [30, 7],
+      "expiryDate": "2027-06-01"
+    },
+    "uploadVersion": {
+      "content": "Revised NDA Agreement text. This agreement is entered into as of March 1, 2026, between Party A and Party B...",
+      "changeNote": "Updated confidentiality clause in section 3."
+    },
+    "compareVersions": {
+      "versionA": 1,
+      "versionB": 2
+    }
+  },
+  "analyses": {
+    "request": {
+      "contractId": "contract-id-here",
+      "version": 1
+    }
+  },
+  "notifications": {
+    "list": {
+      "queryParams": {
+        "page": 1,
+        "limit": 20,
+        "read": false
+      }
+    }
+  },
+  "enrichment": {
+    "holidays": {
+      "queryParams": {
+        "country": "IN",
+        "date": "2026-03-15"
+      }
+    },
+    "holidaysByYear": {
+      "country": "US",
+      "year": 2026
+    },
+    "emailValidate": {
+      "queryParams": {
+        "email": "user@example.com"
+      }
+    },
+    "emailReputation": {
+      "queryParams": {
+        "email": "user@example.com"
+      }
+    },
+    "emailBreaches": {
+      "queryParams": {
+        "email": "user@example.com"
+      }
+    },
+    "currencyRate": {
+      "queryParams": {
+        "from": "USD",
+        "to": "EUR"
+      }
+    },
+    "currencyRates": {
+      "queryParams": {
+        "base": "USD",
+        "targets": "EUR,GBP,JPY"
+      }
+    }
+  },
+  "admin": {
+    "createUser": {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "password": "SecurePass@123",
+      "role": "viewer"
+    },
+    "updateUser": {
+      "name": "John Updated",
+      "role": "manager",
+      "isActive": true
+    },
+    "auditLogs": {
+      "queryParams": {
+        "page": 1,
+        "limit": 20,
+        "action": "user.login"
+      }
+    }
+  },
+  "sampleData": {
+    "users": {
+      "validUser": {
+        "name": "Test User",
+        "email": "test@example.com",
+        "password": "SecurePass@123",
+        "role": "viewer",
+        "emailVerified": true,
+        "isActive": true
+      },
+      "adminUser": {
+        "name": "Admin User",
+        "email": "admin@example.com",
+        "password": "AdminPass@123",
+        "role": "admin",
+        "emailVerified": true,
+        "isActive": true
+      },
+      "unverifiedUser": {
+        "name": "Unverified User",
+        "email": "unverified@example.com",
+        "password": "SecurePass@123",
+        "role": "viewer",
+        "emailVerified": false,
+        "isActive": true
+      },
+      "loginPayload": {
+        "email": "test@example.com",
+        "password": "SecurePass@123"
+      },
+      "registerPayload": {
+        "name": "New User",
+        "email": "newuser@example.com",
+        "password": "SecurePass@123"
+      }
+    },
+    "contracts": {
+      "validContract": {
+        "title": "Test NDA Agreement",
+        "type": "NDA",
+        "content": "This Non-Disclosure Agreement is entered into as of January 1, 2026, between Party A and Party B. Both parties agree to keep all shared information strictly confidential and not disclose it to any third party without prior written consent.",
+        "tags": ["nda", "test"]
+      },
+      "shortContract": {
+        "title": "Too Short",
+        "type": "NDA",
+        "content": "Too short.",
+        "tags": []
+      },
+      "contractTypes": ["NDA", "Vendor", "Employment", "SaaS", "Other"]
+    }
+  }
+}
