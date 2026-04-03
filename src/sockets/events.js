@@ -14,6 +14,12 @@ const SOCKET_EVENTS = Object.freeze({
     // User notifications
     QUOTA_WARNING: 'quota:warning',
 
+    // ─── New Module Events ──────────────────────────────────
+    NEW_NOTIFICATION: 'new_notification',
+    ORDER_STATUS_UPDATED: 'order_status_updated',
+    ORDER_CREATED: 'order_created',
+    REVIEW_ADDED: 'review_added',
+
     // Room management
     JOIN_ORG: 'join:org',
 });

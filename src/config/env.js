@@ -45,6 +45,10 @@ const envSchema = z.object({
   ANALYSIS_QUEUE: z.string().default('lexai.analysis.queue'),
   ALERT_QUEUE: z.string().default('lexai.alert.queue'),
   DLX_EXCHANGE: z.string().default('lexai.dlx'),
+  NOTIFICATION_QUEUE: z.string().default('lexai.notification.queue'),
+  ANALYTICS_EVENTS_QUEUE: z.string().default('lexai.analytics.queue'),
+  ORDER_QUEUE: z.string().default('lexai.order.queue'),
+  REVIEW_QUEUE: z.string().default('lexai.review.queue'),
 
   // ─── PASETO ───────────────────────────────────────────────
   PASETO_LOCAL_SECRET: z.string().min(32, 'PASETO_LOCAL_SECRET must be at least 32 characters'),

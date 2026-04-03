@@ -3,9 +3,11 @@
  *
  * Handles CRUD operations for in-app notifications:
  *   - List org notifications with pagination
+ *   - List user-specific notifications with pagination
  *   - Mark individual notification as read
  *   - Mark all notifications as read (bulk)
  *   - Get unread count for badge display
+ *   - Delete a notification
  */
 
 import Notification from '../models/Notification.model.js';
@@ -94,4 +96,57 @@ export async function markAllAsRead(req, res) {
     );
 
     sendSuccess(res, { message: 'All notifications marked as read.', data: { modifiedCount: result.modifiedCount } });
+}
+
+/**
+ * GET /notifications/user
+ * List notifications for the authenticated user (user-scoped, not org-scoped).
+ */
+export async function getUserNotifications(req, res) {
+    const { userId } = req.user;
+    const { page = 1, limit = 20, read, type } = req.query;
+
+    const filter = { userId };
+
+    if (read !== undefined) {
+        filter.read = read === 'true';
+    }
+    if (type) {
+        filter.type = type;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [notifications, total] = await Promise.all([
+        Notification.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .lean(),
+        Notification.countDocuments(filter),
+    ]);
+
+    const meta = buildPaginationMeta(total, parseInt(page), parseInt(limit));
+
+    sendSuccess(res, { data: { notifications, meta } });
+}
+
+/**
+ * DELETE /notifications/:id
+ * Delete a notification.
+ */
+export async function deleteNotification(req, res) {
+    const { userId } = req.user;
+    const { id } = req.params;
+
+    const notification = await Notification.findOneAndDelete({ _id: id, userId });
+
+    if (!notification) {
+        return res.status(HTTP.NOT_FOUND).json({
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Notification not found.' },
+        });
+    }
+
+    sendSuccess(res, { message: 'Notification deleted.' });
 }

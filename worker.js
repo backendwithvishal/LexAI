@@ -13,6 +13,8 @@ import { connectRabbitMQ, disconnectRabbitMQ } from './src/config/rabbitmq.js';
 import { initEmailTransporter } from './src/services/email.service.js';
 import { startAnalysisWorker } from './src/workers/analysis.worker.js';
 import { startAlertWorker } from './src/workers/alert.worker.js';
+import { startNotificationWorker } from './src/workers/notification.worker.js';
+import { startAnalyticsEventWorker } from './src/workers/analyticsEvent.worker.js';
 import logger from './src/utils/logger.js';
 
 async function startWorker() {
@@ -32,8 +34,10 @@ async function startWorker() {
         // 5. Start consumers
         await startAnalysisWorker();
         await startAlertWorker();
+        await startNotificationWorker();
+        await startAnalyticsEventWorker();
 
-        logger.info('🔧 LexAI Worker started — consuming analysis + alert queues');
+        logger.info('🔧 LexAI Worker started — consuming analysis + alert + notification + analytics queues');
 
         // ─── Graceful Shutdown ────────────────────────────────────────
         const shutdown = async (signal) => {

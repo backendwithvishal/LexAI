@@ -27,6 +27,10 @@ services:
       ANALYSIS_QUEUE: ${ANALYSIS_QUEUE}
       ALERT_QUEUE: ${ALERT_QUEUE}
       DLX_EXCHANGE: ${DLX_EXCHANGE}
+      NOTIFICATION_QUEUE: ${NOTIFICATION_QUEUE:-lexai.notification.queue}
+      ANALYTICS_EVENTS_QUEUE: ${ANALYTICS_EVENTS_QUEUE:-lexai.analytics.queue}
+      ORDER_QUEUE: ${ORDER_QUEUE:-lexai.order.queue}
+      REVIEW_QUEUE: ${REVIEW_QUEUE:-lexai.review.queue}
 
       # ── PASETO ──
       PASETO_LOCAL_SECRET: ${PASETO_LOCAL_SECRET}
@@ -113,6 +117,10 @@ services:
       ANALYSIS_QUEUE: ${ANALYSIS_QUEUE}
       ALERT_QUEUE: ${ALERT_QUEUE}
       DLX_EXCHANGE: ${DLX_EXCHANGE}
+      NOTIFICATION_QUEUE: ${NOTIFICATION_QUEUE:-lexai.notification.queue}
+      ANALYTICS_EVENTS_QUEUE: ${ANALYTICS_EVENTS_QUEUE:-lexai.analytics.queue}
+      ORDER_QUEUE: ${ORDER_QUEUE:-lexai.order.queue}
+      REVIEW_QUEUE: ${REVIEW_QUEUE:-lexai.review.queue}
 
       # ── OpenRouter AI ──
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}

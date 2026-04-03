@@ -25,7 +25,7 @@ const notificationSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['analysis_complete', 'analysis_failed', 'contract_expiring', 'quota_warning', 'invitation'],
+            enum: ['analysis_complete', 'analysis_failed', 'contract_expiring', 'quota_warning', 'invitation', 'order_created', 'order_updated', 'review_added'],
             required: true,
         },
         channel: {

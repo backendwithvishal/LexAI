@@ -13,6 +13,10 @@
  *   /api/v1/notifications — In-app notification feed
  *   /api/v1/enrichment    — Public API enrichment data
  *   /api/v1/admin         — Admin-only platform management
+ *   /api/v1/products      — Product CRUD and search
+ *   /api/v1/orders        — Order management
+ *   /api/v1/reviews       — Product reviews
+ *   /api/v1/analytics     — Admin analytics dashboards
  */
 
 import { Router } from 'express';
@@ -25,6 +29,10 @@ import analysisRoutes from './analysis.routes.js';
 import notificationRoutes from './notification.routes.js';
 import enrichmentRoutes from './enrichment.routes.js';
 import adminRoutes from './admin.routes.js';
+import productRoutes from './product.routes.js';
+import orderRoutes from './order.routes.js';
+import reviewRoutes from './review.routes.js';
+import analyticsRoutes from './analytics.routes.js';
 
 const router = Router();
 
@@ -36,5 +44,10 @@ router.use('/analyses', analysisRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/enrichment', enrichmentRoutes);
 router.use('/admin', adminRoutes);
+router.use('/products', productRoutes);
+router.use('/orders', orderRoutes);
+router.use('/reviews', reviewRoutes);
+router.use('/analytics', analyticsRoutes);
 
 export default router;
+
