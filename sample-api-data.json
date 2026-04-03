@@ -111,6 +111,121 @@
         "limit": 20,
         "read": false
       }
+    },
+    "userNotifications": {
+      "queryParams": {
+        "page": 1,
+        "limit": 20,
+        "read": false,
+        "type": "order_created"
+      }
+    }
+  },
+  "products": {
+    "create": {
+      "name": "Premium Legal Toolkit",
+      "description": "Comprehensive toolkit for legal professionals including contract templates, AI-powered analysis tools, and compliance checklists.",
+      "price": 299.99,
+      "category": "legal-tools",
+      "stock": 100,
+      "images": ["https://example.com/images/toolkit-1.jpg"],
+      "tags": ["legal", "toolkit", "professional"]
+    },
+    "update": {
+      "price": 249.99,
+      "stock": 150,
+      "tags": ["legal", "toolkit", "premium", "updated"]
+    },
+    "list": {
+      "queryParams": {
+        "page": 1,
+        "limit": 10,
+        "category": "legal-tools",
+        "sortBy": "price",
+        "sortOrder": "asc"
+      }
+    },
+    "search": {
+      "queryParams": {
+        "search": "legal toolkit",
+        "page": 1,
+        "limit": 20
+      }
+    }
+  },
+  "orders": {
+    "create": {
+      "items": [
+        { "productId": "product-id-here", "quantity": 2 }
+      ],
+      "shippingAddress": {
+        "street": "123 Legal Avenue",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "zipCode": "400001",
+        "country": "India"
+      },
+      "paymentMethod": "credit_card"
+    },
+    "updateStatus": {
+      "status": "confirmed"
+    },
+    "cancel": {
+      "reason": "Changed my mind"
+    },
+    "list": {
+      "queryParams": {
+        "page": 1,
+        "limit": 20,
+        "status": "pending",
+        "sortBy": "createdAt",
+        "sortOrder": "desc"
+      }
+    }
+  },
+  "reviews": {
+    "create": {
+      "productId": "product-id-here",
+      "rating": 5,
+      "title": "Excellent toolkit!",
+      "comment": "This legal toolkit has everything I need. The contract templates are comprehensive and the AI analysis integration is seamless."
+    },
+    "list": {
+      "queryParams": {
+        "page": 1,
+        "limit": 20,
+        "sortBy": "createdAt",
+        "sortOrder": "desc"
+      }
+    }
+  },
+  "analytics": {
+    "sales": {
+      "queryParams": {
+        "period": "30d"
+      }
+    },
+    "products": {
+      "queryParams": {
+        "limit": 10
+      }
+    },
+    "users": {
+      "queryParams": {
+        "period": "30d"
+      }
+    },
+    "revenue": {
+      "queryParams": {
+        "period": "90d",
+        "groupBy": "week"
+      }
+    },
+    "topProducts": {
+      "queryParams": {
+        "limit": 10,
+        "period": "30d"
+      }
     }
   },
   "enrichment": {

@@ -21,6 +21,9 @@ Create a Postman **Environment** with these variables:
 | `analysis_id`     | *(set after requestAnalysis)*      | MongoDB ObjectId of an analysis     |
 | `user_id`         | *(set after login)*                | MongoDB ObjectId of your user       |
 | `notification_id` | *(from GET /notifications)*        | MongoDB ObjectId of a notification  |
+| `product_id`      | *(set after createProduct)*        | MongoDB ObjectId of a product       |
+| `order_id`        | *(set after createOrder)*          | MongoDB ObjectId of an order        |
+| `review_id`       | *(set after addReview)*            | MongoDB ObjectId of a review        |
 | `otp`             | *(from email / dev response)*      | 6-digit OTP for email verification  |
 | `reset_token`     | *(from forgot-password email)*     | Hex token for password reset        |
 | `session_jti`     | *(from GET /auth/sessions)*        | UUID JTI of a session to revoke     |
@@ -1266,7 +1269,1000 @@ Authorization: Bearer {{access_token}}
 
 ---
 
-## 🌍 8. Enrichment — `/api/v1/enrichment`
+### GET — User Notifications _(🔒 Protected)_
+
+```
+GET {{base_url}}/notifications/user
+```
+
+Returns notifications scoped to the authenticated user (not org-scoped).
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (optional):**
+| Param   | Type    | Default | Description                               |
+|---------|---------|---------|-------------------------------------------|
+| `page`  | number  | 1       |                                           |
+| `limit` | number  | 20      |                                           |
+| `read`  | boolean | _(all)_ | `true` or `false` to filter               |
+| `type`  | string  | _(all)_ | Filter by type (e.g. `order_created`)     |
+
+**Example:**
+```
+GET {{base_url}}/notifications/user?read=false&type=order_created&page=1&limit=20
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "notifications": [
+      {
+        "id": "65f1a2b3c4d5e6f7a8b9c0d1",
+        "type": "order_created",
+        "message": "Your order has been placed successfully. Total: $299.99",
+        "read": false,
+        "createdAt": "2026-04-03T10:00:00.000Z"
+      }
+    ],
+    "meta": { "total": 5, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+---
+
+### DELETE — Delete Notification _(🔒 Protected)_
+
+```
+DELETE {{base_url}}/notifications/{{notification_id}}
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Body:** _(empty)_
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Notification deleted."
+}
+```
+
+**Error Response (404):**
+```json
+{
+  "success": false,
+  "error": { "code": "NOT_FOUND", "message": "Notification not found." }
+}
+```
+
+---
+
+## 🛒 8. Products — `/api/v1/products`
+
+> All routes require `Authorization: Bearer {{access_token}}`
+
+---
+
+### POST — Create Product _(🔒 Protected)_
+
+```
+POST {{base_url}}/products
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+**Body (raw JSON):**
+```json
+{
+  "name": "Premium Legal Toolkit",
+  "description": "Comprehensive toolkit for legal professionals including contract templates, AI-powered analysis tools, and compliance checklists. Designed for law firms of all sizes.",
+  "price": 299.99,
+  "category": "legal-tools",
+  "stock": 100,
+  "images": ["https://example.com/images/toolkit-1.jpg"],
+  "tags": ["legal", "toolkit", "professional"]
+}
+```
+
+**Success Response (201):**
+```json
+{
+  "success": true,
+  "message": "Product created successfully.",
+  "data": {
+    "product": {
+      "id": "65f1a2b3c4d5e6f7a8b9c100",
+      "name": "Premium Legal Toolkit",
+      "description": "Comprehensive toolkit for legal professionals...",
+      "price": 299.99,
+      "category": "legal-tools",
+      "stock": 100,
+      "images": ["https://example.com/images/toolkit-1.jpg"],
+      "tags": ["legal", "toolkit", "professional"],
+      "averageRating": 0,
+      "totalReviews": 0,
+      "isActive": true,
+      "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
+      "createdAt": "2026-04-03T10:00:00.000Z"
+    }
+  }
+}
+```
+
+> Copy `data.product.id` → `product_id` env var.
+
+---
+
+### GET — List Products _(🔒 Protected)_
+
+```
+GET {{base_url}}/products
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (all optional):**
+| Param       | Type    | Default     | Options / Description                       |
+|-------------|---------|-------------|---------------------------------------------|
+| `page`      | number  | 1           |                                             |
+| `limit`     | number  | 20          | 1–100                                       |
+| `category`  | string  | _(none)_    | Filter by category                          |
+| `minPrice`  | number  | _(none)_    | Minimum price filter                        |
+| `maxPrice`  | number  | _(none)_    | Maximum price filter                        |
+| `search`    | string  | _(none)_    | Full-text search in name + description      |
+| `sortBy`    | string  | `createdAt` | `price`, `name`, `createdAt`, `averageRating` |
+| `sortOrder` | string  | `desc`      | `asc`, `desc`                               |
+| `tags`      | string  | _(none)_    | Comma-separated tag list                    |
+| `isActive`  | boolean | `true`      | Filter active/inactive products             |
+
+**Example:**
+```
+GET {{base_url}}/products?category=legal-tools&sortBy=price&sortOrder=asc&page=1&limit=10
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "products": [ { ... } ],
+    "meta": { "total": 25, "page": 1, "limit": 10, "totalPages": 3 }
+  }
+}
+```
+
+---
+
+### GET — Search Products _(🔒 Protected)_
+
+```
+GET {{base_url}}/products/search?search=legal toolkit
+```
+
+Full-text search on product name and description. Results are ranked by relevance.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters:**
+| Param    | Type   | Required | Default | Description                |
+|----------|--------|----------|---------|----------------------------|
+| `search` | string | **Yes**  |         | Search query               |
+| `page`   | number | No       | 1       |                            |
+| `limit`  | number | No       | 20      | 1–100                      |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "products": [ { "name": "Premium Legal Toolkit", "score": 1.5, ... } ],
+    "meta": { "total": 3, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+**Error Response (400 — missing search query):**
+```json
+{
+  "success": false,
+  "error": { "code": "VALIDATION_ERROR", "message": "Search query is required." }
+}
+```
+
+---
+
+### GET — Get Product by ID _(🔒 Protected)_
+
+```
+GET {{base_url}}/products/{{product_id}}
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "product": {
+      "id": "65f1a2b3c4d5e6f7a8b9c100",
+      "name": "Premium Legal Toolkit",
+      "description": "...",
+      "price": 299.99,
+      "category": "legal-tools",
+      "stock": 100,
+      "averageRating": 4.5,
+      "totalReviews": 12
+    }
+  }
+}
+```
+
+---
+
+### PATCH — Update Product _(🔒 Protected — Owner only)_
+
+```
+PATCH {{base_url}}/products/{{product_id}}
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+**Body (raw JSON — all fields optional, at least 1 required):**
+```json
+{
+  "price": 249.99,
+  "stock": 150,
+  "tags": ["legal", "toolkit", "premium", "updated"]
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Product updated successfully.",
+  "data": { "product": { ... } }
+}
+```
+
+**Error Response (404 — not found or not owner):**
+```json
+{
+  "success": false,
+  "error": { "code": "NOT_FOUND", "message": "Product not found or you are not the owner." }
+}
+```
+
+---
+
+### DELETE — Delete Product _(🔒 Protected — Owner only)_
+
+```
+DELETE {{base_url}}/products/{{product_id}}
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Body:** _(empty)_
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Product deleted successfully."
+}
+```
+
+---
+
+### GET — Get Product Reviews _(🔒 Protected)_
+
+```
+GET {{base_url}}/products/{{product_id}}/reviews
+```
+
+Alternative endpoint to `GET /reviews/product/:productId` — mounted under products for clean REST API design.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (optional):**
+| Param       | Type   | Default     | Options                   |
+|-------------|--------|-------------|---------------------------|
+| `page`      | number | 1           |                           |
+| `limit`     | number | 20          | 1–100                     |
+| `sortBy`    | string | `createdAt` | `createdAt`, `rating`     |
+| `sortOrder` | string | `desc`      | `asc`, `desc`             |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [ { "rating": 5, "title": "Excellent toolkit!", ... } ],
+    "meta": { "total": 12, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+---
+
+## 📦 9. Orders — `/api/v1/orders`
+
+> All routes require `Authorization: Bearer {{access_token}}`
+> Orders are user-scoped — you can only see your own orders.
+
+---
+
+### POST — Create Order _(🔒 Protected)_
+
+```
+POST {{base_url}}/orders
+```
+
+Validates stock availability, calculates total from current product prices, and decrements stock atomically.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+**Body (raw JSON):**
+```json
+{
+  "items": [
+    { "productId": "{{product_id}}", "quantity": 2 }
+  ],
+  "shippingAddress": {
+    "street": "123 Legal Avenue",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "zipCode": "400001",
+    "country": "India"
+  },
+  "paymentMethod": "credit_card"
+}
+```
+
+Payment methods: `credit_card`, `debit_card`, `paypal`, `bank_transfer`, `cash_on_delivery`.
+
+**Success Response (201):**
+```json
+{
+  "success": true,
+  "message": "Order placed successfully.",
+  "data": {
+    "order": {
+      "id": "65f1a2b3c4d5e6f7a8b9c200",
+      "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
+      "items": [
+        { "productId": "...", "name": "Premium Legal Toolkit", "quantity": 2, "price": 299.99 }
+      ],
+      "totalAmount": 599.98,
+      "status": "pending",
+      "shippingAddress": { ... },
+      "paymentMethod": "credit_card",
+      "createdAt": "2026-04-03T10:00:00.000Z"
+    }
+  }
+}
+```
+
+> Copy `data.order.id` → `order_id` env var.
+
+**Error Response (400 — insufficient stock):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INSUFFICIENT_STOCK",
+    "message": "Insufficient stock for \"Premium Legal Toolkit\". Available: 5, Requested: 10."
+  }
+}
+```
+
+---
+
+### GET — List Orders _(🔒 Protected)_
+
+```
+GET {{base_url}}/orders
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (optional):**
+| Param       | Type   | Default     | Options                                     |
+|-------------|--------|-------------|---------------------------------------------|
+| `page`      | number | 1           |                                             |
+| `limit`     | number | 20          | 1–100                                       |
+| `status`    | string | _(all)_     | `pending`, `confirmed`, `shipped`, `delivered`, `cancelled` |
+| `sortBy`    | string | `createdAt` | `createdAt`, `totalAmount`, `status`        |
+| `sortOrder` | string | `desc`      | `asc`, `desc`                               |
+
+**Example:**
+```
+GET {{base_url}}/orders?status=pending&sortBy=createdAt&sortOrder=desc
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "orders": [ { ... } ],
+    "meta": { "total": 10, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+---
+
+### GET — Order Statistics _(🔒 Protected)_
+
+```
+GET {{base_url}}/orders/stats
+```
+
+Returns aggregated stats for the authenticated user's orders.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "stats": {
+      "byStatus": [
+        { "_id": "delivered", "count": 5, "totalAmount": 1499.95 },
+        { "_id": "pending", "count": 2, "totalAmount": 599.98 }
+      ],
+      "overall": {
+        "totalOrders": 7,
+        "totalSpent": 2099.93,
+        "averageOrderValue": 299.99
+      }
+    }
+  }
+}
+```
+
+---
+
+### GET — Get Order by ID _(🔒 Protected)_
+
+```
+GET {{base_url}}/orders/{{order_id}}
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "order": {
+      "id": "65f1a2b3c4d5e6f7a8b9c200",
+      "items": [ ... ],
+      "totalAmount": 599.98,
+      "status": "pending",
+      "shippingAddress": { ... }
+    }
+  }
+}
+```
+
+---
+
+### PATCH — Update Order Status _(🔒 Protected)_
+
+```
+PATCH {{base_url}}/orders/{{order_id}}/status
+```
+
+Enforces a state machine: `pending → confirmed → shipped → delivered`. Invalid transitions are rejected.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+**Body (raw JSON):**
+```json
+{
+  "status": "confirmed"
+}
+```
+
+Valid `status` values: `confirmed`, `shipped`, `delivered`.
+
+**Valid Transitions:**
+| From        | Allowed Targets              |
+|-------------|------------------------------|
+| `pending`   | `confirmed`, `cancelled`     |
+| `confirmed` | `shipped`, `cancelled`       |
+| `shipped`   | `delivered`                  |
+| `delivered` | _(terminal — no transitions)_|
+| `cancelled` | _(terminal — no transitions)_|
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Order status updated.",
+  "data": { "order": { "status": "confirmed", ... } }
+}
+```
+
+**Error Response (400 — invalid transition):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_STATUS_TRANSITION",
+    "message": "Cannot transition from \"delivered\" to \"confirmed\". Allowed: none (terminal state)."
+  }
+}
+```
+
+---
+
+### PATCH — Cancel Order _(🔒 Protected)_
+
+```
+PATCH {{base_url}}/orders/{{order_id}}/cancel
+```
+
+Cancels an order (only from `pending` or `confirmed` states). Automatically restores product stock.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+**Body (raw JSON — optional):**
+```json
+{
+  "reason": "Changed my mind"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Order cancelled successfully.",
+  "data": {
+    "order": {
+      "status": "cancelled",
+      "cancelledAt": "2026-04-03T12:00:00.000Z",
+      "cancelReason": "Changed my mind"
+    }
+  }
+}
+```
+
+---
+
+## ⭐ 10. Reviews — `/api/v1/reviews`
+
+> All routes require `Authorization: Bearer {{access_token}}`
+> One review per user per product (enforced by unique index).
+
+---
+
+### POST — Add Review _(🔒 Protected)_
+
+```
+POST {{base_url}}/reviews
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+**Body (raw JSON):**
+```json
+{
+  "productId": "{{product_id}}",
+  "rating": 5,
+  "title": "Excellent toolkit!",
+  "comment": "This legal toolkit has everything I need. The contract templates are comprehensive and the AI analysis integration is seamless."
+}
+```
+
+`rating`: integer 1–5 (required). `title` and `comment` are optional.
+
+**Success Response (201):**
+```json
+{
+  "success": true,
+  "message": "Review added successfully.",
+  "data": {
+    "review": {
+      "id": "65f1a2b3c4d5e6f7a8b9c300",
+      "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
+      "productId": "65f1a2b3c4d5e6f7a8b9c100",
+      "rating": 5,
+      "title": "Excellent toolkit!",
+      "comment": "...",
+      "createdAt": "2026-04-03T10:00:00.000Z"
+    }
+  }
+}
+```
+
+> Copy `data.review.id` → `review_id` env var.
+
+**Error Response (409 — duplicate review):**
+```json
+{
+  "success": false,
+  "error": { "code": "DUPLICATE_REVIEW", "message": "You have already reviewed this product." }
+}
+```
+
+---
+
+### GET — My Reviews _(🔒 Protected)_
+
+```
+GET {{base_url}}/reviews/my
+```
+
+Returns all reviews by the authenticated user with populated product info.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (optional):**
+| Param  | Type   | Default |
+|--------|--------|---------|
+| `page` | number | 1       |
+| `limit`| number | 20      |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "id": "...",
+        "rating": 5,
+        "title": "Excellent toolkit!",
+        "productId": { "name": "Premium Legal Toolkit", "price": 299.99 }
+      }
+    ],
+    "meta": { "total": 3, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+---
+
+### GET — Product Reviews _(🔒 Protected)_
+
+```
+GET {{base_url}}/reviews/product/{{product_id}}
+```
+
+Returns all reviews for a specific product with populated reviewer info.
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Query Parameters (optional):**
+| Param       | Type   | Default     | Options                   |
+|-------------|--------|-------------|---------------------------|
+| `page`      | number | 1           |                           |
+| `limit`     | number | 20          | 1–100                     |
+| `sortBy`    | string | `createdAt` | `createdAt`, `rating`     |
+| `sortOrder` | string | `desc`      | `asc`, `desc`             |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "id": "...",
+        "rating": 5,
+        "title": "Excellent!",
+        "userId": { "name": "Vishal Sanam", "email": "vishal@example.com" }
+      }
+    ],
+    "meta": { "total": 12, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+---
+
+### DELETE — Delete Review _(🔒 Protected — Author only)_
+
+```
+DELETE {{base_url}}/reviews/{{review_id}}
+```
+
+**Headers:**
+```
+Authorization: Bearer {{access_token}}
+```
+
+**Body:** _(empty)_
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Review deleted successfully."
+}
+```
+
+> Deleting a review triggers async recalculation of the product's average rating.
+
+---
+
+## 📊 11. Analytics — `/api/v1/analytics`
+
+> All routes require `Authorization: Bearer {{admin_token}}` + **`role: admin`**.
+> Uses MongoDB aggregation pipelines on Order, Product, Review, and User collections.
+
+---
+
+### GET — Sales Analytics _(🔒 Admin only)_
+
+```
+GET {{base_url}}/analytics/sales
+```
+
+**Headers:**
+```
+Authorization: Bearer {{admin_token}}
+```
+
+**Query Parameters (optional):**
+| Param    | Type   | Default | Options / Description                                |
+|----------|--------|---------|------------------------------------------------------|
+| `period` | string | `30d`   | Time period: `7d`, `30d`, `90d`, `6m`, `12m`, etc.  |
+
+**Example:**
+```
+GET {{base_url}}/analytics/sales?period=30d
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "period": "30d",
+    "summary": {
+      "totalRevenue": 15299.50,
+      "totalOrders": 42,
+      "avgOrderValue": 364.27,
+      "totalItemsSold": 98
+    },
+    "salesOverTime": [
+      { "_id": { "year": 2026, "month": 4, "day": 1 }, "totalRevenue": 2999.00, "orderCount": 8, "avgOrderValue": 374.88 }
+    ],
+    "byStatus": [
+      { "_id": "delivered", "count": 30 },
+      { "_id": "pending", "count": 8 },
+      { "_id": "cancelled", "count": 4 }
+    ]
+  }
+}
+```
+
+---
+
+### GET — Product Performance _(🔒 Admin only)_
+
+```
+GET {{base_url}}/analytics/products
+```
+
+**Headers:**
+```
+Authorization: Bearer {{admin_token}}
+```
+
+**Query Parameters (optional):**
+| Param   | Type   | Default | Description                    |
+|---------|--------|---------|--------------------------------|
+| `limit` | number | 10      | Number of top products to show |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "topByRevenue": [
+      { "_id": "...", "productName": "Premium Legal Toolkit", "totalRevenue": 8999.70, "totalUnitsSold": 30, "orderCount": 25 }
+    ],
+    "ratingDistribution": [
+      { "_id": "4-5 stars", "count": 15 },
+      { "_id": "3-4 stars", "count": 8 }
+    ],
+    "byCategory": [
+      { "_id": "legal-tools", "productCount": 10, "avgPrice": 199.99, "avgRating": 4.2 }
+    ]
+  }
+}
+```
+
+---
+
+### GET — User Activity _(🔒 Admin only)_
+
+```
+GET {{base_url}}/analytics/users
+```
+
+**Headers:**
+```
+Authorization: Bearer {{admin_token}}
+```
+
+**Query Parameters (optional):**
+| Param    | Type   | Default | Description |
+|----------|--------|---------|-------------|
+| `period` | string | `30d`   | Time period |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "period": "30d",
+    "totalUsers": 42,
+    "newUsers": 8,
+    "topBuyers": [
+      { "_id": "...", "orderCount": 12, "totalSpent": 3599.88 }
+    ],
+    "topReviewers": [
+      { "_id": "...", "reviewCount": 8, "avgRating": 4.5 }
+    ]
+  }
+}
+```
+
+---
+
+### GET — Revenue Trends _(🔒 Admin only)_
+
+```
+GET {{base_url}}/analytics/revenue
+```
+
+**Headers:**
+```
+Authorization: Bearer {{admin_token}}
+```
+
+**Query Parameters (optional):**
+| Param     | Type   | Default | Options / Description                |
+|-----------|--------|---------|--------------------------------------|
+| `period`  | string | `90d`   | Time period: `7d`, `30d`, `90d`, etc.|
+| `groupBy` | string | `day`   | `day`, `week`, `month`               |
+
+**Example:**
+```
+GET {{base_url}}/analytics/revenue?period=90d&groupBy=week
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "period": "90d",
+    "groupBy": "week",
+    "revenue": [
+      { "_id": { "year": 2026, "week": 13 }, "revenue": 4999.50, "orders": 15 },
+      { "_id": { "year": 2026, "week": 14 }, "revenue": 6299.00, "orders": 20 }
+    ]
+  }
+}
+```
+
+---
+
+### GET — Top Products by Sales _(🔒 Admin only)_
+
+```
+GET {{base_url}}/analytics/top-products
+```
+
+**Headers:**
+```
+Authorization: Bearer {{admin_token}}
+```
+
+**Query Parameters (optional):**
+| Param    | Type   | Default | Description                      |
+|----------|--------|---------|----------------------------------|
+| `limit`  | number | 10      | Number of top products to return |
+| `period` | string | `30d`   | Time period                      |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "period": "30d",
+    "topProducts": [
+      {
+        "_id": "...",
+        "name": "Premium Legal Toolkit",
+        "totalSold": 30,
+        "totalRevenue": 8999.70,
+        "orderCount": 25
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 🌍 12. Enrichment — `/api/v1/enrichment`
 
 > All routes require `Authorization: Bearer {{access_token}}`
 > These call external public APIs. Non-critical — degrade gracefully.
@@ -1694,7 +2690,7 @@ Authorization: Bearer {{access_token}}
 
 ---
 
-## 🛡️ 9. Admin — `/api/v1/admin` ✅
+## 🛡️ 13. Admin — `/api/v1/admin` ✅
 
 > All routes require `Authorization: Bearer {{admin_token}}` + **`role: admin`**.
 
@@ -2028,25 +3024,57 @@ All errors follow this shape:
 29. GET    /notifications                       ← View notifications; copy notification_id
 30. PATCH  /notifications/{{notification_id}}/read  ← Mark one as read
 31. PATCH  /notifications/read-all              ← Mark all as read
+32. GET    /notifications/user                  ← User-scoped notifications
+33. DELETE /notifications/{{notification_id}}   ← Delete a notification
+
+# ── Products ──────────────────────────────────────────────────────────────
+34. POST   /products                            ← Create product; copy product_id
+35. GET    /products                            ← List products (pagination, filtering)
+36. GET    /products/search?search=legal        ← Full-text search
+37. GET    /products/{{product_id}}             ← Get product by ID
+38. PATCH  /products/{{product_id}}             ← Update product (owner)
+39. GET    /products/{{product_id}}/reviews     ← Get product reviews
+
+# ── Orders ────────────────────────────────────────────────────────────────
+40. POST   /orders                              ← Create order; copy order_id
+41. GET    /orders                              ← List user orders
+42. GET    /orders/stats                        ← Order statistics
+43. GET    /orders/{{order_id}}                 ← Get order by ID
+44. PATCH  /orders/{{order_id}}/status          ← Update status (confirm)
+45. PATCH  /orders/{{order_id}}/cancel          ← Cancel order (restores stock)
+
+# ── Reviews ───────────────────────────────────────────────────────────────
+46. POST   /reviews                             ← Add review; copy review_id
+47. GET    /reviews/my                          ← Get my reviews
+48. GET    /reviews/product/{{product_id}}      ← Get product reviews
+49. DELETE /reviews/{{review_id}}               ← Delete review (author)
+
+# ── Analytics (admin only) ────────────────────────────────────────────────
+50. GET    /analytics/sales                     ← Sales analytics
+51. GET    /analytics/products                  ← Product performance
+52. GET    /analytics/users                     ← User activity stats
+53. GET    /analytics/revenue                   ← Revenue trends
+54. GET    /analytics/top-products              ← Top products by sales
 
 # ── Enrichment APIs ───────────────────────────────────────────────────────
-32. GET    /enrichment/country/India            ← Country info
-33. GET    /enrichment/time/Asia/Kolkata        ← World time
-34. GET    /enrichment/holidays?country=IN&date=2026-03-15  ← Check specific holiday
-35. GET    /enrichment/holidays/US/2026         ← All holidays for a year
-36. GET    /enrichment/ip/8.8.8.8              ← IP geolocation
-37. GET    /enrichment/email/validate?email=user@example.com  ← Email validation
-38. GET    /enrichment/email/reputation?email=user@example.com ← Email reputation
-39. GET    /enrichment/email/breaches?email=user@example.com   ← Email breach check
-40. GET    /enrichment/currency/rate?from=USD&to=EUR           ← Single exchange rate
-41. GET    /enrichment/currency/rates?base=USD&targets=EUR,GBP ← Multiple rates
+55. GET    /enrichment/country/India            ← Country info
+56. GET    /enrichment/time/Asia/Kolkata        ← World time
+57. GET    /enrichment/holidays?country=IN&date=2026-03-15  ← Check specific holiday
+58. GET    /enrichment/holidays/US/2026         ← All holidays for a year
+59. GET    /enrichment/ip/8.8.8.8              ← IP geolocation
+60. GET    /enrichment/email/validate?email=user@example.com  ← Email validation
+61. GET    /enrichment/email/reputation?email=user@example.com ← Email reputation
+62. GET    /enrichment/email/breaches?email=user@example.com   ← Email breach check
+63. GET    /enrichment/currency/rate?from=USD&to=EUR           ← Single exchange rate
+64. GET    /enrichment/currency/rates?base=USD&targets=EUR,GBP ← Multiple rates
 
 # ── Cleanup ────────────────────────────────────────────────────────────────
-42. DELETE /contracts/{{contract_id}}           ← Delete contract (admin/manager)
-43. DELETE /auth/sessions/{{session_jti}}       ← Revoke specific session
-44. DELETE /auth/sessions                       ← Revoke all sessions
-45. DELETE /admin/users/{{user_id}}             ← (Admin) Deactivate user
-46. POST   /auth/logout                         ← Blacklist tokens
+65. DELETE /products/{{product_id}}             ← Delete product (owner)
+66. DELETE /contracts/{{contract_id}}           ← Delete contract (admin/manager)
+67. DELETE /auth/sessions/{{session_jti}}       ← Revoke specific session
+68. DELETE /auth/sessions                       ← Revoke all sessions
+69. DELETE /admin/users/{{user_id}}             ← (Admin) Deactivate user
+70. POST   /auth/logout                         ← Blacklist tokens
 ```
 
 ---
@@ -2091,23 +3119,48 @@ All errors follow this shape:
 | 34 | `GET`    | `/api/v1/analyses/:id`                           | Bearer+Org| Get analysis by ID                 |
 | 35 | `GET`    | `/api/v1/analyses/contract/:contractId`          | Bearer+Org| All analyses for contract          |
 | 36 | `GET`    | `/api/v1/notifications`                          | Bearer    | List notifications                 |
-| 37 | `GET`    | `/api/v1/notifications/unread-count`             | Bearer    | Get unread count                   |
-| 38 | `PATCH`  | `/api/v1/notifications/read-all`                 | Bearer    | Mark all as read                   |
-| 39 | `PATCH`  | `/api/v1/notifications/:id/read`                 | Bearer    | Mark one as read                   |
-| 40 | `GET`    | `/api/v1/enrichment/country/:name`               | Bearer    | Country info                       |
-| 41 | `GET`    | `/api/v1/enrichment/time/:timezone`              | Bearer    | World time                         |
-| 42 | `GET`    | `/api/v1/enrichment/holidays`                    | Bearer    | Check holiday by date              |
-| 43 | `GET`    | `/api/v1/enrichment/holidays/:country/:year`     | Bearer    | All holidays for a year            |
-| 44 | `GET`    | `/api/v1/enrichment/ip/:ip`                      | Bearer    | IP geolocation                     |
-| 45 | `GET`    | `/api/v1/enrichment/email/validate`              | Bearer    | Email validation                   |
-| 46 | `GET`    | `/api/v1/enrichment/email/reputation`            | Bearer    | Email reputation                   |
-| 47 | `GET`    | `/api/v1/enrichment/email/breaches`              | Bearer    | Email breach check (HIBP)          |
-| 48 | `GET`    | `/api/v1/enrichment/currency/rate`               | Bearer    | Single exchange rate               |
-| 49 | `GET`    | `/api/v1/enrichment/currency/rates`              | Bearer    | Multiple exchange rates            |
-| 50 | `GET`    | `/api/v1/admin/stats`                            | Admin     | Platform stats                     |
-| 51 | `GET`    | `/api/v1/admin/queue/status`                     | Admin     | Queue status                       |
-| 52 | `GET`    | `/api/v1/admin/users`                            | Admin     | List all users                     |
-| 53 | `POST`   | `/api/v1/admin/users`                            | Admin     | Create user (pre-verified)         |
-| 54 | `PATCH`  | `/api/v1/admin/users/:id`                        | Admin     | Update user                        |
-| 55 | `DELETE` | `/api/v1/admin/users/:id`                        | Admin     | Deactivate user                    |
-| 56 | `GET`    | `/api/v1/admin/audit-logs`                       | Admin     | Global audit trail                 |
+| 37 | `GET`    | `/api/v1/notifications/user`                     | Bearer    | User-scoped notifications          |
+| 38 | `GET`    | `/api/v1/notifications/unread-count`             | Bearer    | Get unread count                   |
+| 39 | `PATCH`  | `/api/v1/notifications/read-all`                 | Bearer    | Mark all as read                   |
+| 40 | `PATCH`  | `/api/v1/notifications/:id/read`                 | Bearer    | Mark one as read                   |
+| 41 | `DELETE` | `/api/v1/notifications/:id`                      | Bearer    | Delete notification                |
+| 42 | `POST`   | `/api/v1/products`                               | Bearer    | Create product                     |
+| 43 | `GET`    | `/api/v1/products`                               | Bearer    | List products (paginated)          |
+| 44 | `GET`    | `/api/v1/products/search`                        | Bearer    | Full-text search products          |
+| 45 | `GET`    | `/api/v1/products/:id`                           | Bearer    | Get product by ID                  |
+| 46 | `PATCH`  | `/api/v1/products/:id`                           | Bearer    | Update product (owner)             |
+| 47 | `DELETE` | `/api/v1/products/:id`                           | Bearer    | Delete product (owner)             |
+| 48 | `GET`    | `/api/v1/products/:id/reviews`                   | Bearer    | Product reviews (via product route)|
+| 49 | `POST`   | `/api/v1/orders`                                 | Bearer    | Create order (validates stock)     |
+| 50 | `GET`    | `/api/v1/orders`                                 | Bearer    | List user orders                   |
+| 51 | `GET`    | `/api/v1/orders/stats`                           | Bearer    | Order statistics                   |
+| 52 | `GET`    | `/api/v1/orders/:id`                             | Bearer    | Get order by ID                    |
+| 53 | `PATCH`  | `/api/v1/orders/:id/status`                      | Bearer    | Update order status                |
+| 54 | `PATCH`  | `/api/v1/orders/:id/cancel`                      | Bearer    | Cancel order (restores stock)      |
+| 55 | `POST`   | `/api/v1/reviews`                                | Bearer    | Add review (1 per user/product)    |
+| 56 | `GET`    | `/api/v1/reviews/my`                             | Bearer    | User's reviews                     |
+| 57 | `GET`    | `/api/v1/reviews/product/:productId`             | Bearer    | Product reviews                    |
+| 58 | `DELETE` | `/api/v1/reviews/:id`                            | Bearer    | Delete review (author)             |
+| 59 | `GET`    | `/api/v1/analytics/sales`                        | Admin     | Sales analytics                    |
+| 60 | `GET`    | `/api/v1/analytics/products`                     | Admin     | Product performance                |
+| 61 | `GET`    | `/api/v1/analytics/users`                        | Admin     | User activity stats                |
+| 62 | `GET`    | `/api/v1/analytics/revenue`                      | Admin     | Revenue trends                     |
+| 63 | `GET`    | `/api/v1/analytics/top-products`                 | Admin     | Top products by sales              |
+| 64 | `GET`    | `/api/v1/enrichment/country/:name`               | Bearer    | Country info                       |
+| 65 | `GET`    | `/api/v1/enrichment/time/:timezone`              | Bearer    | World time                         |
+| 66 | `GET`    | `/api/v1/enrichment/holidays`                    | Bearer    | Check holiday by date              |
+| 67 | `GET`    | `/api/v1/enrichment/holidays/:country/:year`     | Bearer    | All holidays for a year            |
+| 68 | `GET`    | `/api/v1/enrichment/ip/:ip`                      | Bearer    | IP geolocation                     |
+| 69 | `GET`    | `/api/v1/enrichment/email/validate`              | Bearer    | Email validation                   |
+| 70 | `GET`    | `/api/v1/enrichment/email/reputation`            | Bearer    | Email reputation                   |
+| 71 | `GET`    | `/api/v1/enrichment/email/breaches`              | Bearer    | Email breach check (HIBP)          |
+| 72 | `GET`    | `/api/v1/enrichment/currency/rate`               | Bearer    | Single exchange rate               |
+| 73 | `GET`    | `/api/v1/enrichment/currency/rates`              | Bearer    | Multiple exchange rates            |
+| 74 | `GET`    | `/api/v1/admin/stats`                            | Admin     | Platform stats                     |
+| 75 | `GET`    | `/api/v1/admin/queue/status`                     | Admin     | Queue status                       |
+| 76 | `GET`    | `/api/v1/admin/users`                            | Admin     | List all users                     |
+| 77 | `POST`   | `/api/v1/admin/users`                            | Admin     | Create user (pre-verified)         |
+| 78 | `PATCH`  | `/api/v1/admin/users/:id`                        | Admin     | Update user                        |
+| 79 | `DELETE` | `/api/v1/admin/users/:id`                        | Admin     | Deactivate user                    |
+| 80 | `GET`    | `/api/v1/admin/audit-logs`                       | Admin     | Global audit trail                 |
+
