@@ -2720,7 +2720,7 @@ Copy `data.accessToken` → set as `admin_token` in your Postman environment.
 
 ---
 
-### GET — Platform Stats _(🔒 Admin only)_
+### GET — Platform Stats _(🔒 Admin only)_ ✅
 
 ```
 GET {{base_url}}/admin/stats
@@ -2751,7 +2751,7 @@ Authorization: Bearer {{admin_token}}
 
 ---
 
-### GET — Queue Status _(🔒 Admin only)_
+### GET — Queue Status _(🔒 Admin only)_  ✅
 
 ```
 GET {{base_url}}/admin/queue/status
@@ -2779,7 +2779,7 @@ Authorization: Bearer {{admin_token}}
 
 ---
 
-### GET — List All Users _(🔒 Admin only)_
+### GET — List All Users _(🔒 Admin only)_  ✅
 
 ```
 GET {{base_url}}/admin/users
