@@ -20,6 +20,7 @@ import { buildPaginationMeta } from '../utils/apiResponse.js';
 import { getPlanLimits } from '../constants/plans.js';
 import * as auditService from './audit.service.js';
 import AppError from '../utils/AppError.js';
+import logger from '../utils/logger.js';
 
 /**
  * Upload a new contract. Extracts text from file or accepts raw text.
@@ -89,6 +90,8 @@ export async function createContract({ orgId, userId, title, type, tags, content
 
     // Increment the org's contract count for future plan limit checks
     await Organization.findByIdAndUpdate(orgId, { $inc: { contractCount: 1 } });
+
+    logger.info({ orgId, userId, contractId: contract._id, title, type, contentLength: contractText.length }, 'Contract uploaded');
 
     // Record in audit trail
     await auditService.log({
@@ -213,6 +216,8 @@ export async function addVersion(contractId, orgId, userId, { content, changeNot
     contract.currentVersion = newVersion;
     await contract.save();
 
+    logger.info({ orgId, userId, contractId, versionNumber: newVersion }, 'Contract version uploaded');
+
     await auditService.log({
         orgId,
         userId,
@@ -264,6 +269,8 @@ export async function deleteContract(contractId, orgId, userId) {
 
     // Decrement the cached contract count
     await Organization.findByIdAndUpdate(orgId, { $inc: { contractCount: -1 } });
+
+    logger.info({ orgId, userId, contractId }, 'Contract soft-deleted');
 
     await auditService.log({
         orgId,

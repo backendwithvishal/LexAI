@@ -40,4 +40,8 @@ USER appuser
 # FIXED: was 3000, must match PORT=3100 in .env and docker-compose.yml
 EXPOSE 3100
 
+# Health check — used by Docker and orchestrators (Kubernetes, ECS, Render)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:3100/health || exit 1
+
 CMD ["node", "server.js"]

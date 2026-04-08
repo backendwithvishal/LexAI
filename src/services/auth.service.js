@@ -35,34 +35,7 @@ import {
 import * as emailService from './email.service.js';
 import logger from '../utils/logger.js';
 import AppError from '../utils/AppError.js';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Redis key templates
-// All Redis keys are defined here so if you ever need to rename or add a
-// namespace prefix, you only change it in one place.
-// ─────────────────────────────────────────────────────────────────────────────
-const REDIS_KEY = {
-    // OTP is keyed by the user's _id, not by the OTP itself.
-    // This means issuing a new OTP automatically invalidates the old one.
-    emailOtp: (userId) => `emailOtp:${userId}`,
-
-    // Password-reset token is keyed by the token itself (random 64-char hex).
-    // Redis GET returns the userId; the token is embedded in the key name.
-    pwReset: (token) => `pwReset:${token}`,
-
-    // Login failure counter per email address
-    loginFail: (email) => `login:fail:${email}`,
-
-    // Account lockout flag per email address
-    loginLock: (email) => `login:lockout:${email}`,
-
-    // Revoked token JTIs — checked on every authenticated request
-    blacklist: (jti) => `blacklist:${jti}`,
-
-    // Active refresh token metadata
-    refreshToken: (jti) => `refreshToken:${jti}`,        // value=userId, TTL=token lifetime
-    userRefreshSet: (userId) => `refreshTokens:${userId}`, // set of JTIs for a user
-};
+import { REDIS_KEYS as REDIS_KEY } from '../constants/redisKeys.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Token / OTP generators

@@ -23,7 +23,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
 
       # ── RabbitMQ ──
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
       ANALYSIS_QUEUE: ${ANALYSIS_QUEUE}
       ALERT_QUEUE: ${ALERT_QUEUE}
       DLX_EXCHANGE: ${DLX_EXCHANGE}
@@ -113,7 +113,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
 
       # ── RabbitMQ ──
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
       ANALYSIS_QUEUE: ${ANALYSIS_QUEUE}
       ALERT_QUEUE: ${ALERT_QUEUE}
       DLX_EXCHANGE: ${DLX_EXCHANGE}
@@ -184,8 +184,8 @@ services:
       - "127.0.0.1:5672:5672"
       - "127.0.0.1:15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:

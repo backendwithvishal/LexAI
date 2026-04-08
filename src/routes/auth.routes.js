@@ -36,8 +36,9 @@ import { asyncWrapper } from '../utils/asyncWrapper.js';
 const router = Router();
 
 // Named preset limiters — see rateLimiter.middleware.js for window/max values
-const authLimiter = rateLimiter('auth');    // 10 req / 15 min
+const authLimiter   = rateLimiter('auth');    // 10 req / 15 min
 const strictLimiter = rateLimiter('strict');  // 5 req / 15 min
+const otpLimiter    = rateLimiter('strict');  // 5 req / 15 min — OTP brute-force protection
 // Brute-force protection: locks by IP + email after 5 failed attempts
 const loginBrute = bruteForceProtection({ maxAttempts: 5, lockoutMs: 15 * 60_000, identifierField: 'email' });
 
@@ -52,7 +53,7 @@ router.post(
 
 router.post(
     '/verify-email',
-    strictLimiter,
+    otpLimiter,  // Max 5 OTP attempts per 15 min — prevents brute-force
     validate(authValidator.verifyEmail),
     asyncWrapper(authController.verifyEmail)
 );

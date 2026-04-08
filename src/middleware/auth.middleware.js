@@ -14,6 +14,7 @@ import { sendError } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 import env from '../config/env.js';
 import logger from '../utils/logger.js';
+import { REDIS_KEYS } from '../constants/redisKeys.js';
 
 /**
  * Protect routes — requires a valid, non-blacklisted PASETO access token.
@@ -47,9 +48,19 @@ export async function authenticate(req, res, next) {
 
         const decoded = await verifyToken(token, env.PASETO_LOCAL_SECRET);
 
+        // Explicit expiry check — belt-and-suspenders on top of PASETO's own check
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (decoded.exp && decoded.exp < nowSec) {
+            return sendError(res, {
+                statusCode: HTTP.UNAUTHORIZED,
+                code: 'TOKEN_EXPIRED',
+                message: 'Access token has expired. Use POST /auth/refresh-token to get a new one.',
+            });
+        }
+
         // Check if this token has been revoked (user logged out)
         const redis = getRedisClient();
-        const isBlacklisted = await redis.exists(`blacklist:${decoded.jti}`);
+        const isBlacklisted = await redis.exists(REDIS_KEYS.blacklist(decoded.jti));
 
         if (isBlacklisted) {
             return sendError(res, {

@@ -10,15 +10,20 @@ import * as contractService from '../services/contract.service.js';
 import * as auditService from '../services/audit.service.js';
 import { sendSuccess } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
+import AppError from '../utils/AppError.js';
 
 /** POST /contracts — supports file upload (multer) or raw text body */
 export async function uploadContract(req, res) {
     const { orgId } = req;
 
-    // Tags can arrive as a JSON array string from multipart forms — try to parse it
+    // Tags can arrive as a JSON array string from multipart forms — parse strictly
     let tags = req.body.tags;
     if (typeof tags === 'string') {
-        try { tags = JSON.parse(tags); } catch { /* leave as string — service handles it */ }
+        try {
+            tags = JSON.parse(tags);
+        } catch {
+            throw new AppError('tags must be a valid JSON array (e.g. ["legal","2026"])', 400, 'INVALID_JSON');
+        }
     }
 
     const contract = await contractService.createContract({

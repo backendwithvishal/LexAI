@@ -10,35 +10,30 @@
 
 Create a Postman **Environment** with these variables:
 
-| Variable          | Initial Value                      | Description                         |
-|-------------------|------------------------------------|-------------------------------------|
-| `base_url`        | `http://localhost:3500/api/v1`     | Base API URL                        |
-| `access_token`    | *(set after login)*                | PASETO access token (Bearer)        |
-| `admin_token`     | *(set after admin login)*          | PASETO access token for admin user  |
-| `refresh_token`   | *(auto-set via cookie)*            | Set as HttpOnly cookie by server    |
-| `org_id`          | *(set after createOrg)*            | MongoDB ObjectId of your org        |
-| `contract_id`     | *(set after upload)*               | MongoDB ObjectId of a contract      |
-| `analysis_id`     | *(set after requestAnalysis)*      | MongoDB ObjectId of an analysis     |
-| `user_id`         | *(set after login)*                | MongoDB ObjectId of your user       |
-| `notification_id` | *(from GET /notifications)*        | MongoDB ObjectId of a notification  |
-| `product_id`      | *(set after createProduct)*        | MongoDB ObjectId of a product       |
-| `order_id`        | *(set after createOrder)*          | MongoDB ObjectId of an order        |
-| `review_id`       | *(set after addReview)*            | MongoDB ObjectId of a review        |
-| `otp`             | *(from email / dev response)*      | 6-digit OTP for email verification  |
-| `reset_token`     | *(from forgot-password email)*     | Hex token for password reset        |
-| `session_jti`     | *(from GET /auth/sessions)*        | UUID JTI of a session to revoke     |
-| `invite_token`    | *(from invitation email)*          | Invitation acceptance token         |
+| Variable           | Initial Value                  | Description                        |
+|--------------------|--------------------------------|------------------------------------|
+| `base_url`         | `http://localhost:3500/api/v1` | Base API URL                       |
+| `access_token`     | *(set after login)*            | PASETO access token (Bearer)       |
+| `admin_token`      | *(set after admin login)*      | PASETO access token for admin user |
+| `refresh_token`    | *(auto-set via cookie)*        | Set as HttpOnly cookie by server   |
+| `org_id`           | *(set after createOrg)*        | MongoDB ObjectId of your org       |
+| `contract_id`      | *(set after upload)*           | MongoDB ObjectId of a contract     |
+| `analysis_id`      | *(set after requestAnalysis)*  | MongoDB ObjectId of an analysis    |
+| `user_id`          | *(set after login)*            | MongoDB ObjectId of your user      |
+| `notification_id`  | *(from GET /notifications)*    | MongoDB ObjectId of a notification |
+| `otp`              | *(from email / dev response)*  | 6-digit OTP for email verification |
+| `reset_token`      | *(from forgot-password email)* | Hex token for password reset       |
+| `session_jti`      | *(from GET /auth/sessions)*    | UUID JTI of a session to revoke    |
+| `invite_token`     | *(from invitation email)*      | Invitation acceptance token        |
 
 > 🔒 **Protected routes** require: `Authorization: Bearer {{access_token}}`
 > 🍪 **Refresh token**: automatically stored as HttpOnly cookie named `refreshToken`
 
 ---
 
-## 🏥 1. Health Check ✅
+## 🏥 1. Health Check
 
 No authentication required. Used by Docker / load balancers.
-
----
 
 ### GET — Health Check
 
@@ -48,15 +43,11 @@ GET http://localhost:3500/health
 
 **Headers:** _(none)_
 
-**Success Response (200 — all healthy):**
+**Success Response (200):**
 ```json
 {
   "status": "ok",
-  "services": {
-    "mongodb": "up",
-    "redis": "up",
-    "rabbitmq": "up"
-  },
+  "services": { "mongodb": "up", "redis": "up", "rabbitmq": "up" },
   "timestamp": "2026-03-03T17:50:00.000Z",
   "uptime": 3600
 }
@@ -74,24 +65,17 @@ GET http://localhost:3500/health
 
 ---
 
-## 🔐 2. Auth — `/api/v1/auth` ✅
+## 🔐 2. Auth — `/api/v1/auth`
 
 > Rate-limited. Public endpoints do NOT need a token.
-
----
 
 ### POST — Register
 
 ```
 POST {{base_url}}/auth/register
-```
-
-**Headers:**
-```
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
 {
   "name": "Vishal Sanam",
@@ -100,22 +84,18 @@ Content-Type: application/json
 }
 ```
 
-**Password rules:** min 8 chars, must contain uppercase, lowercase, digit, special char (`@$!%*?&.,\-_#^()`).
+Password rules: min 8 chars, uppercase + lowercase + digit + special char (`@$!%*?&.,\-_#^()`).
 
-**Success Response (201):**
+**Success (201):**
 ```json
 {
   "success": true,
   "message": "Registration successful. A 6-digit OTP has been sent to your email.",
-  "data": {
-    "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
-    "email": "vishal@example.com",
-    "otp": "482910"
-  }
+  "data": { "userId": "65f1a2b3c4d5e6f7a8b9c0d1", "email": "vishal@example.com", "otp": "482910" }
 }
 ```
 
-> ⚠️ `otp` is only included in the response in **development** mode. In production it is only sent by email.
+> ⚠️ `otp` is only in the response in **development** mode.
 
 ---
 
@@ -123,29 +103,18 @@ Content-Type: application/json
 
 ```
 POST {{base_url}}/auth/verify-email
-```
-
-**Headers:**
-```
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "email": "vishal@example.com",
-  "otp": "{{otp}}"
-}
+{ "email": "vishal@example.com", "otp": "{{otp}}" }
 ```
 
-OTP is exactly 6 digits. Expires in 10 minutes.
+OTP is 6 digits, expires in 10 minutes.
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Email verified successfully. You can now log in."
-}
+{ "success": true, "message": "Email verified successfully. You can now log in." }
 ```
 
 ---
@@ -154,26 +123,16 @@ OTP is exactly 6 digits. Expires in 10 minutes.
 
 ```
 POST {{base_url}}/auth/resend-verification-email
-```
-
-**Headers:**
-```
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "email": "vishal@example.com"
-}
+{ "email": "vishal@example.com" }
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "If this email exists and is unverified, a new OTP has been sent."
-}
+{ "success": true, "message": "If this email exists and is unverified, a new OTP has been sent." }
 ```
 
 ---
@@ -182,41 +141,27 @@ Content-Type: application/json
 
 ```
 POST {{base_url}}/auth/login
-```
-
-**Headers:**
-```
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "email": "vishal@example.com",
-  "password": "SecurePass@123"
-}
+{ "email": "vishal@example.com", "password": "SecurePass@123" }
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "message": "Login successful.",
   "data": {
     "accessToken": "v3.local.abcdef1234567890...",
-    "user": {
-      "id": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "name": "Vishal Sanam",
-      "email": "vishal@example.com",
-      "role": "admin"
-    }
+    "user": { "id": "65f1a2b3c4d5e6f7a8b9c0d1", "name": "Vishal Sanam", "email": "vishal@example.com", "role": "admin" }
   }
 }
 ```
 
-> 🍪 The server also sets a `refreshToken` HttpOnly cookie automatically.
-> Copy `data.accessToken` → Postman env var `access_token`.
-> Copy `data.user.id` → Postman env var `user_id`.
+> 🍪 Server sets `refreshToken` HttpOnly cookie automatically.
+> Copy `data.accessToken` → `access_token`. Copy `data.user.id` → `user_id`.
 
 ---
 
@@ -226,20 +171,11 @@ Content-Type: application/json
 POST {{base_url}}/auth/refresh-token
 ```
 
-**Headers:** _(none needed — reads `refreshToken` cookie automatically)_
+No body needed — reads `refreshToken` cookie automatically.
 
-**Body:** _(empty — no body required)_
-
-> In Postman: Go to **Settings → Cookies** → ensure cookie `refreshToken` from `localhost` is passed.
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "v3.local.abcdef1234567890..."
-  }
-}
+{ "success": true, "data": { "accessToken": "v3.local.abcdef1234567890..." } }
 ```
 
 ---
@@ -248,29 +184,19 @@ POST {{base_url}}/auth/refresh-token
 
 ```
 POST {{base_url}}/auth/forgot-password
-```
-
-**Headers:**
-```
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "email": "vishal@example.com"
-}
+{ "email": "vishal@example.com" }
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "If this email is registered, a password reset link has been sent."
-}
+{ "success": true, "message": "If this email is registered, a password reset link has been sent." }
 ```
 
-> The reset token is emailed. Copy the token from the email link into the `reset_token` env var.
+> Copy the token from the reset email link → `reset_token` env var.
 
 ---
 
@@ -278,29 +204,18 @@ Content-Type: application/json
 
 ```
 POST {{base_url}}/auth/reset-password
-```
-
-**Headers:**
-```
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "token": "{{reset_token}}",
-  "password": "NewSecurePass@456"
-}
+{ "token": "{{reset_token}}", "password": "NewSecurePass@456" }
 ```
 
-Token is a 64-character hex string. Expires in 1 hour.
+Token is a 64-char hex string, expires in 1 hour.
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Password reset successfully. You can now log in with your new password."
-}
+{ "success": true, "message": "Password reset successfully. You can now log in with your new password." }
 ```
 
 ---
@@ -309,21 +224,12 @@ Token is a 64-character hex string. Expires in 1 hour.
 
 ```
 POST {{base_url}}/auth/logout
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Body:** _(empty)_
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Logged out successfully."
-}
+{ "success": true, "message": "Logged out successfully." }
 ```
 
 > Blacklists both access and refresh tokens in Redis. Cookie is cleared.
@@ -334,28 +240,17 @@ Authorization: Bearer {{access_token}}
 
 ```
 POST {{base_url}}/auth/change-password
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "currentPassword": "SecurePass@123",
-  "newPassword": "NewSecurePass@456"
-}
+{ "currentPassword": "SecurePass@123", "newPassword": "NewSecurePass@456" }
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Password changed successfully."
-}
+{ "success": true, "message": "Password changed successfully." }
 ```
 
 ---
@@ -364,28 +259,18 @@ Content-Type: application/json
 
 ```
 GET {{base_url}}/auth/sessions
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-Lists all active refresh token sessions for your account.
-
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
-  "data": {
-    "sessions": [
-      { "jti": "a1b2c3d4-e5f6-...", "createdAt": "2026-03-01T10:00:00Z" }
-    ]
-  }
+  "data": { "sessions": [{ "jti": "a1b2c3d4-e5f6-...", "createdAt": "2026-03-01T10:00:00Z" }] }
 }
 ```
 
-> Copy a `jti` value into `session_jti` env var to use below.
+> Copy a `jti` → `session_jti` env var.
 
 ---
 
@@ -393,21 +278,12 @@ Lists all active refresh token sessions for your account.
 
 ```
 DELETE {{base_url}}/auth/sessions/{{session_jti}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Body:** _(empty)_
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Session revoked."
-}
+{ "success": true, "message": "Session revoked." }
 ```
 
 ---
@@ -416,23 +292,12 @@ Authorization: Bearer {{access_token}}
 
 ```
 DELETE {{base_url}}/auth/sessions
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Body:** _(empty)_
-
-Logs you out from all devices.
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "All sessions revoked."
-}
+{ "success": true, "message": "All sessions revoked." }
 ```
 
 ---
@@ -440,33 +305,20 @@ Logs you out from all devices.
 ## 👤 3. Users — `/api/v1/users`
 
 > All routes require `Authorization: Bearer {{access_token}}`
-> Password changes: use `POST /api/v1/auth/change-password` instead.
-
----
 
 ### GET — Get My Profile _(🔒 Protected)_
 
 ```
 GET {{base_url}}/users/me
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "data": {
-    "user": {
-      "_id": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "name": "Vishal Sanam",
-      "email": "vishal@example.com",
-      "role": "admin",
-      "isVerified": true
-    }
+    "user": { "_id": "65f1a2b3c4d5e6f7a8b9c0d1", "name": "Vishal Sanam", "email": "vishal@example.com", "role": "admin", "isVerified": true }
   }
 }
 ```
@@ -477,32 +329,21 @@ Authorization: Bearer {{access_token}}
 
 ```
 PATCH {{base_url}}/users/me
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "name": "Vishal S."
-}
+{ "name": "Vishal S." }
 ```
 
-**Success Response (200):**
+Only `name` can be updated here. Email changes require a separate verification flow.
+
+**Success (200):**
 ```json
 {
   "success": true,
-  "data": {
-    "user": {
-      "_id": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "name": "Vishal S.",
-      "email": "vishal@example.com"
-    }
-  }
+  "data": { "user": { "_id": "65f1a2b3c4d5e6f7a8b9c0d1", "name": "Vishal S.", "email": "vishal@example.com" } }
 }
 ```
 
@@ -512,21 +353,12 @@ Content-Type: application/json
 
 ```
 GET {{base_url}}/users/{{user_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": {
-    "user": { ... }
-  }
-}
+{ "success": true, "data": { "user": { ... } } }
 ```
 
 ---
@@ -535,39 +367,24 @@ Authorization: Bearer {{access_token}}
 
 > All routes require `Authorization: Bearer {{access_token}}`
 
----
-
 ### POST — Create Organization _(🔒 Protected)_
 
 ```
 POST {{base_url}}/orgs
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "name": "LexAI Legal Ltd"
-}
+{ "name": "LexAI Legal Ltd" }
 ```
 
-**Success Response (201):**
+**Success (201):**
 ```json
 {
   "success": true,
   "data": {
-    "org": {
-      "id": "65f1a2b3c4d5e6f7a8b9c0d2",
-      "name": "LexAI Legal Ltd",
-      "slug": "lexai-legal-ltd",
-      "plan": "free",
-      "memberCount": 1
-    }
+    "org": { "id": "65f1a2b3c4d5e6f7a8b9c0d2", "name": "LexAI Legal Ltd", "slug": "lexai-legal-ltd", "plan": "free", "memberCount": 1 }
   }
 }
 ```
@@ -580,19 +397,12 @@ Content-Type: application/json
 
 ```
 GET {{base_url}}/orgs/{{org_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": { "org": { ... } }
-}
+{ "success": true, "data": { "org": { ... } } }
 ```
 
 ---
@@ -601,27 +411,17 @@ Authorization: Bearer {{access_token}}
 
 ```
 PATCH {{base_url}}/orgs/{{org_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "name": "LexAI Legal Group"
-}
+{ "name": "LexAI Legal Group" }
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": { "org": { ... } }
-}
+{ "success": true, "data": { "org": { ... } } }
 ```
 
 ---
@@ -630,67 +430,43 @@ Content-Type: application/json
 
 ```
 POST {{base_url}}/orgs/{{org_id}}/invite
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "email": "newmember@example.com",
-  "role": "viewer"
-}
+{ "email": "newmember@example.com", "role": "viewer" }
 ```
 
 Roles: `"admin"`, `"manager"`, `"viewer"` (default: `"viewer"`).
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "message": "Invitation sent to newmember@example.com",
-  "data": {
-    "invitationId": "65f1a2b3c4d5e6f7a8b9c0d3",
-    "expiresAt": "2026-03-10T17:00:00.000Z"
-  }
+  "data": { "invitationId": "65f1a2b3c4d5e6f7a8b9c0d3", "expiresAt": "2026-03-10T17:00:00.000Z" }
 }
 ```
 
 ---
 
-### POST — Accept Invitation _(Public — No token required)_
+### POST — Accept Invitation _(Public)_
 
 ```
 POST {{base_url}}/orgs/{{org_id}}/invite/accept
-```
-
-**Headers:**
-```
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "token": "{{invite_token}}",
-  "name": "New Member",
-  "password": "Welcome@123"
-}
+{ "token": "{{invite_token}}", "name": "New Member", "password": "Welcome@123" }
 ```
 
-`name` and `password` are required if the user is new (no existing account).
+`name` and `password` required only if the user has no existing account.
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Invitation accepted. Your account has been created.",
-  "data": { ... }
-}
+{ "success": true, "message": "Invitation accepted. Your account has been created.", "data": { ... } }
 ```
 
 ---
@@ -699,29 +475,17 @@ Content-Type: application/json
 
 ```
 PATCH {{base_url}}/orgs/{{org_id}}/members/{{user_id}}/role
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "role": "manager"
-}
+{ "role": "manager" }
 ```
 
-Roles: `"admin"`, `"manager"`, `"viewer"`.
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Member role updated successfully."
-}
+{ "success": true, "message": "Member role updated successfully." }
 ```
 
 ---
@@ -730,54 +494,64 @@ Roles: `"admin"`, `"manager"`, `"viewer"`.
 
 ```
 DELETE {{base_url}}/orgs/{{org_id}}/members/{{user_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Body:** _(empty)_
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Member removed from organization."
-}
+{ "success": true, "message": "Member removed from organization." }
 ```
 
 ---
 
 ## 📄 5. Contracts — `/api/v1/contracts`
 
-> All routes require `Authorization: Bearer {{access_token}}` + org membership.
-> The server resolves `orgId` automatically from your PASETO token.
+> All routes require `Authorization: Bearer {{access_token}}`.
+> `orgId` is resolved automatically from your token — you never need to send it.
+
+**Quickstart order:** Create → List → Get → Update → Add Version → Compare → Audit → Delete
 
 ---
 
-### POST — Upload Contract (File) _(🔒 Protected)_
+### POST — Create Contract _(🔒 Protected)_
+
+Use **raw JSON** — no file upload needed. Just paste text directly.
 
 ```
 POST {{base_url}}/contracts
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
+Content-Type: application/json
 ```
 
-**Body (form-data):**
-| Key       | Type | Value                        |
-|-----------|------|------------------------------|
-| `file`    | File | Select a `.pdf`, `.docx`, or `.txt` file (max 5MB) |
-| `title`   | Text | `Service Agreement 2026`     |
-| `type`    | Text | `NDA`                        |
-| `tags`    | Text | `["legal","2026"]`           |
+**Minimal body (only 2 required fields):**
+```json
+{
+  "title": "My NDA",
+  "content": "This Non-Disclosure Agreement is made between Party A and Party B. Both parties agree to keep all shared information strictly confidential and not disclose it to any third party."
+}
+```
 
-Types: `NDA`, `Vendor`, `Employment`, `SaaS`, `Other`.
+**Full body (all optional fields):**
+```json
+{
+  "title": "My NDA",
+  "content": "This Non-Disclosure Agreement is made between Party A and Party B. Both parties agree to keep all shared information strictly confidential and not disclose it to any third party.",
+  "type": "NDA",
+  "tags": ["legal", "2026"],
+  "expiryDate": "2027-06-01",
+  "jurisdiction": "India"
+}
+```
 
-**Success Response (201):**
+Field rules:
+- `title` — required, 3–300 chars, no HTML tags
+- `content` — required, min 50 chars (just paste any contract text)
+- `type` — optional, one of: `NDA` `Vendor` `Employment` `SaaS` `Other` (default: `Other`)
+- `tags` — optional array of strings
+- `expiryDate` — optional, must be a future date in `YYYY-MM-DD` format
+- `jurisdiction` — optional, free text (e.g. `India`, `United States`)
+
+**Success (201):**
 ```json
 {
   "success": true,
@@ -785,7 +559,7 @@ Types: `NDA`, `Vendor`, `Employment`, `SaaS`, `Other`.
   "data": {
     "contract": {
       "id": "65f1a2b3c4d5e6f7a8b9c0d4",
-      "title": "Service Agreement 2026",
+      "title": "My NDA",
       "type": "NDA",
       "version": 1,
       "contentHash": "abc123def456..."
@@ -798,68 +572,41 @@ Types: `NDA`, `Vendor`, `Employment`, `SaaS`, `Other`.
 
 ---
 
-### POST — Upload Contract (Raw Text) _(🔒 Protected)_
-
-```
-POST {{base_url}}/contracts
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
-```json
-{
-  "title": "Simple NDA Agreement",
-  "type": "NDA",
-  "content": "This Non-Disclosure Agreement is entered into as of March 1, 2026, between Party A and Party B. Both parties agree to keep all shared information confidential...",
-  "tags": ["nda", "confidential"],
-  "expiryDate": "2027-03-01",
-  "jurisdiction": "India"
-}
-```
-
-`content` must be at least 50 characters.
-
----
-
 ### GET — List Contracts _(🔒 Protected)_
 
 ```
 GET {{base_url}}/contracts
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Query Parameters (all optional):**
-| Param    | Type   | Default      | Options                                        |
-|----------|--------|--------------|------------------------------------------------|
-| `page`   | number | 1            |                                                |
-| `limit`  | number | 10           | 1–100                                          |
-| `sortBy` | string | `createdAt`  | `createdAt`, `title`, `type`, `riskScore`, `expiryDate` |
-| `order`  | string | `desc`       | `asc`, `desc`                                  |
-| `type`   | string | _(none)_     | `NDA`, `Vendor`, `Employment`, `SaaS`, `Other` |
-| `tag`    | string | _(none)_     | any tag string                                 |
-| `search` | string | _(none)_     | full-text search in title                      |
+No body needed. All query params are optional — just hit send to get your contracts.
 
-**Example:**
+**Optional query params:**
+
+| Param    | Default     | Options                                                  |
+|----------|-------------|----------------------------------------------------------|
+| `page`   | 1           | any number                                               |
+| `limit`  | 10          | 1–50                                                     |
+| `type`   | _(all)_     | `NDA`, `Vendor`, `Employment`, `SaaS`, `Other`           |
+| `sortBy` | `createdAt` | `createdAt`, `title`, `type`, `riskScore`, `expiryDate`  |
+| `order`  | `desc`      | `asc`, `desc`                                            |
+| `tag`    | _(none)_    | any tag string                                           |
+| `search` | _(none)_    | search in title (max 100 chars)                          |
+
+**Examples:**
 ```
-GET {{base_url}}/contracts?page=1&limit=10&type=NDA&order=desc
+GET {{base_url}}/contracts
+GET {{base_url}}/contracts?type=NDA
+GET {{base_url}}/contracts?search=confidential&limit=5
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "data": {
-    "contracts": [ ... ],
-    "meta": { "total": 25, "page": 1, "limit": 10, "totalPages": 3 }
+    "contracts": [{ "id": "...", "title": "My NDA", "type": "NDA", "version": 1 }],
+    "meta": { "total": 3, "page": 1, "limit": 10, "totalPages": 1 }
   }
 }
 ```
@@ -870,107 +617,75 @@ GET {{base_url}}/contracts?page=1&limit=10&type=NDA&order=desc
 
 ```
 GET {{base_url}}/contracts/{{contract_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+No body. Just set `contract_id` in your env vars.
+
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": { "contract": { ... } }
-}
+{ "success": true, "data": { "contract": { "id": "...", "title": "My NDA", "content": "...", "type": "NDA" } } }
 ```
 
 ---
 
 ### PATCH — Update Contract _(🔒 Protected)_
 
+Send only the fields you want to change. At least one field required.
+
 ```
 PATCH {{base_url}}/contracts/{{contract_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON — all fields optional):**
+```json
+{ "title": "Updated NDA" }
+```
+
+Other updatable fields (all optional, mix and match):
 ```json
 {
-  "title": "Updated NDA Agreement",
-  "type": "NDA",
-  "tags": ["updated", "nda"],
+  "title": "Updated NDA",
+  "type": "Vendor",
+  "tags": ["updated", "2026"],
   "alertDays": [30, 7],
-  "expiryDate": "2027-06-01"
+  "expiryDate": "2027-12-01"
 }
 ```
 
-**Success Response (200):**
+- `alertDays` — array of integers (days before expiry to send alerts, e.g. `[90, 30, 7]`)
+
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": { "contract": { ... } }
-}
+{ "success": true, "data": { "contract": { "id": "...", "title": "Updated NDA" } } }
 ```
 
 ---
 
-### DELETE — Delete Contract _(🔒 Protected — Admin/Manager only)_
+### POST — Add New Version _(🔒 Protected)_
 
-```
-DELETE {{base_url}}/contracts/{{contract_id}}
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Body:** _(empty)_
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Contract deleted successfully."
-}
-```
-
----
-
-### POST — Upload New Version _(🔒 Protected)_
+Upload revised contract text as a new version. Only `content` is required.
 
 ```
 POST {{base_url}}/contracts/{{contract_id}}/versions
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
 {
-  "content": "Revised NDA Agreement text. This agreement is entered into as of March 1, 2026, between Party A and Party B...",
-  "changeNote": "Updated confidentiality clause in section 3."
+  "content": "This Non-Disclosure Agreement (revised) is made between Party A and Party B. Updated confidentiality terms apply from the date of signing.",
+  "changeNote": "Updated confidentiality clause"
 }
 ```
 
-`content` must be at least 50 characters.
+- `content` — required, min 50 chars
+- `changeNote` — optional, describe what changed (max 500 chars)
 
-**Success Response (201):**
+**Success (201):**
 ```json
-{
-  "success": true,
-  "data": { "version": 2, ... }
-}
+{ "success": true, "data": { "version": 2 } }
 ```
 
 ---
@@ -979,48 +694,37 @@ Content-Type: application/json
 
 ```
 GET {{base_url}}/contracts/{{contract_id}}/versions
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": { "versions": [ { "version": 1, ... }, { "version": 2, ... } ] }
-}
+{ "success": true, "data": { "versions": [{ "version": 1 }, { "version": 2 }] } }
 ```
 
 ---
 
-### POST — Compare Versions _(🔒 Protected — Pro/Enterprise)_
+### POST — Compare Two Versions _(🔒 Protected)_
 
 ```
 POST {{base_url}}/contracts/{{contract_id}}/compare
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "versionA": 1,
-  "versionB": 2
-}
+{ "versionA": 1, "versionB": 2 }
 ```
 
-**Success Response (200):**
+- Both values must be different integers ≥ 1
+- AI explanation arrives via WebSocket (`diff:complete` event) — not in this response
+
+**Success (202):**
 ```json
 {
   "success": true,
-  "data": { "diff": "...", "summary": "..." }
+  "message": "Version comparison queued. You will be notified via WebSocket when complete.",
+  "data": { "diff": "..." }
 }
 ```
 
@@ -1030,27 +734,33 @@ Content-Type: application/json
 
 ```
 GET {{base_url}}/contracts/{{contract_id}}/audit
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "data": {
-    "logs": [
-      {
-        "action": "contract.created",
-        "userId": "...",
-        "timestamp": "2026-03-01T10:00:00Z"
-      }
-    ]
+    "logs": [{ "action": "contract.created", "userId": "...", "timestamp": "2026-03-01T10:00:00Z" }]
   }
 }
+```
+
+---
+
+### DELETE — Delete Contract _(🔒 Protected — Admin/Manager only)_
+
+```
+DELETE {{base_url}}/contracts/{{contract_id}}
+Authorization: Bearer {{access_token}}
+```
+
+No body needed.
+
+**Success (200):**
+```json
+{ "success": true, "message": "Contract deleted successfully." }
 ```
 
 ---
@@ -1059,49 +769,31 @@ Authorization: Bearer {{access_token}}
 
 > All routes require `Authorization: Bearer {{access_token}}` + org membership.
 
----
-
 ### POST — Request AI Analysis _(🔒 Protected)_
 
 ```
 POST {{base_url}}/analyses
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "contractId": "{{contract_id}}",
-  "version": 1
-}
+{ "contractId": "{{contract_id}}", "version": 1 }
 ```
 
-`version` is optional. If omitted, the latest version is analysed.
+`version` is optional — omit to analyse the latest version.
 
-**Success Response — Cached (200):**
+**Success — Cached (200):**
 ```json
-{
-  "success": true,
-  "message": "Analysis result retrieved from cache.",
-  "data": { "cached": true, "analysis": { ... } }
-}
+{ "success": true, "message": "Analysis result retrieved from cache.", "data": { "cached": true, "analysis": { ... } } }
 ```
 
-**Success Response — Queued (202):**
+**Success — Queued (202):**
 ```json
 {
   "success": true,
   "message": "Analysis job queued. You will receive a WebSocket notification when complete.",
-  "data": {
-    "analysisId": "65f1a2b3c4d5e6f7a8b9c0d5",
-    "status": "pending",
-    "estimatedSeconds": 30
-  }
+  "data": { "analysisId": "65f1a2b3c4d5e6f7a8b9c0d5", "status": "pending", "estimatedSeconds": 30 }
 }
 ```
 
@@ -1113,14 +805,10 @@ Content-Type: application/json
 
 ```
 GET {{base_url}}/analyses/{{analysis_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
@@ -1143,21 +831,12 @@ Authorization: Bearer {{access_token}}
 
 ```
 GET {{base_url}}/analyses/contract/{{contract_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": {
-    "analyses": [ { ... }, { ... } ]
-  }
-}
+{ "success": true, "data": { "analyses": [ { ... }, { ... } ] } }
 ```
 
 ---
@@ -1166,32 +845,24 @@ Authorization: Bearer {{access_token}}
 
 > All routes require `Authorization: Bearer {{access_token}}`
 
----
-
 ### GET — List Notifications _(🔒 Protected)_
 
 ```
 GET {{base_url}}/notifications
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
 **Query Parameters (optional):**
-| Param   | Type    | Default | Description                     |
-|---------|---------|---------|---------------------------------|
-| `page`  | number  | 1       |                                 |
-| `limit` | number  | 20      |                                 |
-| `read`  | boolean | _(all)_ | `true` or `false` to filter     |
 
-**Example:**
-```
-GET {{base_url}}/notifications?read=false&page=1&limit=20
-```
+| Param   | Default | Description                     |
+|---------|---------|---------------------------------|
+| `page`  | 1       |                                 |
+| `limit` | 20      |                                 |
+| `read`  | _(all)_ | `true` or `false` to filter     |
 
-**Success Response (200):**
+**Example:** `GET {{base_url}}/notifications?read=false&page=1&limit=20`
+
+**Success (200):**
 ```json
 {
   "success": true,
@@ -1206,18 +877,42 @@ GET {{base_url}}/notifications?read=false&page=1&limit=20
 
 ```
 GET {{base_url}}/notifications/unread-count
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
+```json
+{ "success": true, "unreadCount": 3 }
+```
+
+---
+
+### GET — User Notifications _(🔒 Protected)_
+
+```
+GET {{base_url}}/notifications/user
+Authorization: Bearer {{access_token}}
+```
+
+Returns notifications scoped to the authenticated user (not org-scoped).
+
+**Query Parameters (optional):**
+
+| Param   | Default | Description                           |
+|---------|---------|---------------------------------------|
+| `page`  | 1       |                                       |
+| `limit` | 20      |                                       |
+| `read`  | _(all)_ | `true` or `false`                     |
+| `type`  | _(all)_ | Filter by type (e.g. `analysis_done`) |
+
+**Success (200):**
 ```json
 {
   "success": true,
-  "unreadCount": 3
+  "data": {
+    "notifications": [{ "id": "...", "type": "analysis_done", "message": "...", "read": false, "createdAt": "..." }],
+    "meta": { "total": 5, "page": 1, "limit": 20, "totalPages": 1 }
+  }
 }
 ```
 
@@ -1227,21 +922,12 @@ Authorization: Bearer {{access_token}}
 
 ```
 PATCH {{base_url}}/notifications/read-all
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Body:** _(empty)_
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "modifiedCount": 3
-}
+{ "success": true, "modifiedCount": 3 }
 ```
 
 ---
@@ -1250,68 +936,12 @@ Authorization: Bearer {{access_token}}
 
 ```
 PATCH {{base_url}}/notifications/{{notification_id}}/read
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Body:** _(empty)_
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "notification": { "_id": "...", "read": true, "readAt": "2026-03-03T17:00:00Z" }
-}
-```
-
----
-
-### GET — User Notifications _(🔒 Protected)_
-
-```
-GET {{base_url}}/notifications/user
-```
-
-Returns notifications scoped to the authenticated user (not org-scoped).
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Query Parameters (optional):**
-| Param   | Type    | Default | Description                               |
-|---------|---------|---------|-------------------------------------------|
-| `page`  | number  | 1       |                                           |
-| `limit` | number  | 20      |                                           |
-| `read`  | boolean | _(all)_ | `true` or `false` to filter               |
-| `type`  | string  | _(all)_ | Filter by type (e.g. `order_created`)     |
-
-**Example:**
-```
-GET {{base_url}}/notifications/user?read=false&type=order_created&page=1&limit=20
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "notifications": [
-      {
-        "id": "65f1a2b3c4d5e6f7a8b9c0d1",
-        "type": "order_created",
-        "message": "Your order has been placed successfully. Total: $299.99",
-        "read": false,
-        "createdAt": "2026-04-03T10:00:00.000Z"
-      }
-    ],
-    "meta": { "total": 5, "page": 1, "limit": 20, "totalPages": 1 }
-  }
-}
+{ "success": true, "notification": { "_id": "...", "read": true, "readAt": "2026-03-03T17:00:00Z" } }
 ```
 
 ---
@@ -1320,1430 +950,230 @@ GET {{base_url}}/notifications/user?read=false&type=order_created&page=1&limit=2
 
 ```
 DELETE {{base_url}}/notifications/{{notification_id}}
-```
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Body:** _(empty)_
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Notification deleted."
-}
-```
-
-**Error Response (404):**
-```json
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Notification not found." }
-}
+{ "success": true, "message": "Notification deleted." }
 ```
 
 ---
 
-## 🛒 8. Products — `/api/v1/products`
+## 🌐 8. Enrichment — `/api/v1/enrichment`
 
 > All routes require `Authorization: Bearer {{access_token}}`
+> These are non-critical — they degrade gracefully if an external API is unavailable.
 
----
-
-### POST — Create Product _(🔒 Protected)_
-
-```
-POST {{base_url}}/products
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
-```json
-{
-  "name": "Premium Legal Toolkit",
-  "description": "Comprehensive toolkit for legal professionals including contract templates, AI-powered analysis tools, and compliance checklists. Designed for law firms of all sizes.",
-  "price": 299.99,
-  "category": "legal-tools",
-  "stock": 100,
-  "images": ["https://example.com/images/toolkit-1.jpg"],
-  "tags": ["legal", "toolkit", "professional"]
-}
-```
-
-**Success Response (201):**
-```json
-{
-  "success": true,
-  "message": "Product created successfully.",
-  "data": {
-    "product": {
-      "id": "65f1a2b3c4d5e6f7a8b9c100",
-      "name": "Premium Legal Toolkit",
-      "description": "Comprehensive toolkit for legal professionals...",
-      "price": 299.99,
-      "category": "legal-tools",
-      "stock": 100,
-      "images": ["https://example.com/images/toolkit-1.jpg"],
-      "tags": ["legal", "toolkit", "professional"],
-      "averageRating": 0,
-      "totalReviews": 0,
-      "isActive": true,
-      "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "createdAt": "2026-04-03T10:00:00.000Z"
-    }
-  }
-}
-```
-
-> Copy `data.product.id` → `product_id` env var.
-
----
-
-### GET — List Products _(🔒 Protected)_
+### GET — Country Info
 
 ```
-GET {{base_url}}/products
-```
-
-**Headers:**
-```
+GET {{base_url}}/enrichment/country/:name
 Authorization: Bearer {{access_token}}
 ```
 
-**Query Parameters (all optional):**
-| Param       | Type    | Default     | Options / Description                       |
-|-------------|---------|-------------|---------------------------------------------|
-| `page`      | number  | 1           |                                             |
-| `limit`     | number  | 20          | 1–100                                       |
-| `category`  | string  | _(none)_    | Filter by category                          |
-| `minPrice`  | number  | _(none)_    | Minimum price filter                        |
-| `maxPrice`  | number  | _(none)_    | Maximum price filter                        |
-| `search`    | string  | _(none)_    | Full-text search in name + description      |
-| `sortBy`    | string  | `createdAt` | `price`, `name`, `createdAt`, `averageRating` |
-| `sortOrder` | string  | `desc`      | `asc`, `desc`                               |
-| `tags`      | string  | _(none)_    | Comma-separated tag list                    |
-| `isActive`  | boolean | `true`      | Filter active/inactive products             |
+**Example:** `GET {{base_url}}/enrichment/country/India`
 
-**Example:**
-```
-GET {{base_url}}/products?category=legal-tools&sortBy=price&sortOrder=asc&page=1&limit=10
-```
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": {
-    "products": [ { ... } ],
-    "meta": { "total": 25, "page": 1, "limit": 10, "totalPages": 3 }
-  }
-}
+{ "success": true, "data": { "country": { "name": "India", "capital": "New Delhi", "region": "Asia", "currencies": { ... }, "languages": { ... } } } }
 ```
 
 ---
 
-### GET — Search Products _(🔒 Protected)_
+### GET — World Time by Timezone
 
 ```
-GET {{base_url}}/products/search?search=legal toolkit
+GET {{base_url}}/enrichment/time/:timezone
+Authorization: Bearer {{access_token}}
 ```
 
-Full-text search on product name and description. Results are ranked by relevance.
+**Example:** `GET {{base_url}}/enrichment/time/Asia/Kolkata`
 
-**Headers:**
+Timezone names support slashes (e.g. `America/New_York`, `Europe/London`).
+
+**Success (200):**
+```json
+{ "success": true, "data": { "time": { "timezone": "Asia/Kolkata", "datetime": "2026-04-08T15:30:00+05:30", "utc_offset": "+05:30" } } }
 ```
+
+---
+
+### GET — Check Holiday on a Date
+
+```
+GET {{base_url}}/enrichment/holidays?country=IN&date=2026-01-26
 Authorization: Bearer {{access_token}}
 ```
 
 **Query Parameters:**
-| Param    | Type   | Required | Default | Description                |
-|----------|--------|----------|---------|----------------------------|
-| `search` | string | **Yes**  |         | Search query               |
-| `page`   | number | No       | 1       |                            |
-| `limit`  | number | No       | 20      | 1–100                      |
 
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "products": [ { "name": "Premium Legal Toolkit", "score": 1.5, ... } ],
-    "meta": { "total": 3, "page": 1, "limit": 20, "totalPages": 1 }
-  }
-}
-```
+| Param     | Required | Description                          |
+|-----------|----------|--------------------------------------|
+| `country` | Yes      | 2-letter ISO code (e.g. `US`, `IN`)  |
+| `date`    | Yes      | Date in `YYYY-MM-DD` format          |
 
-**Error Response (400 — missing search query):**
+**Success (200):**
 ```json
-{
-  "success": false,
-  "error": { "code": "VALIDATION_ERROR", "message": "Search query is required." }
-}
+{ "success": true, "data": { "holiday": { "isHoliday": true, "holidays": [{ "name": "Republic Day", "date": "2026-01-26" }] } } }
 ```
 
 ---
 
-### GET — Get Product by ID _(🔒 Protected)_
+### GET — All Public Holidays for a Country/Year
 
 ```
-GET {{base_url}}/products/{{product_id}}
-```
-
-**Headers:**
-```
+GET {{base_url}}/enrichment/holidays/:country/:year
 Authorization: Bearer {{access_token}}
 ```
 
-**Success Response (200):**
+**Example:** `GET {{base_url}}/enrichment/holidays/IN/2026`
+
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": {
-    "product": {
-      "id": "65f1a2b3c4d5e6f7a8b9c100",
-      "name": "Premium Legal Toolkit",
-      "description": "...",
-      "price": 299.99,
-      "category": "legal-tools",
-      "stock": 100,
-      "averageRating": 4.5,
-      "totalReviews": 12
-    }
-  }
-}
+{ "success": true, "data": { "holidays": [ { "date": "2026-01-26", "name": "Republic Day" }, ... ], "country": "IN", "year": 2026 } }
 ```
 
 ---
 
-### PATCH — Update Product _(🔒 Protected — Owner only)_
+### GET — IP Geolocation
 
 ```
-PATCH {{base_url}}/products/{{product_id}}
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-```
-
-**Body (raw JSON — all fields optional, at least 1 required):**
-```json
-{
-  "price": 249.99,
-  "stock": 150,
-  "tags": ["legal", "toolkit", "premium", "updated"]
-}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Product updated successfully.",
-  "data": { "product": { ... } }
-}
-```
-
-**Error Response (404 — not found or not owner):**
-```json
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Product not found or you are not the owner." }
-}
-```
-
----
-
-### DELETE — Delete Product _(🔒 Protected — Owner only)_
-
-```
-DELETE {{base_url}}/products/{{product_id}}
-```
-
-**Headers:**
-```
+GET {{base_url}}/enrichment/ip/:ip
 Authorization: Bearer {{access_token}}
 ```
 
-**Body:** _(empty)_
+**Example:** `GET {{base_url}}/enrichment/ip/8.8.8.8`
 
-**Success Response (200):**
+Useful for flagging logins from unexpected locations.
+
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "Product deleted successfully."
-}
+{ "success": true, "data": { "ipInfo": { "ip": "8.8.8.8", "city": "Mountain View", "region": "California", "country": "US", "org": "AS15169 Google LLC" } } }
 ```
 
 ---
 
-### GET — Get Product Reviews _(🔒 Protected)_
-
-```
-GET {{base_url}}/products/{{product_id}}/reviews
-```
-
-Alternative endpoint to `GET /reviews/product/:productId` — mounted under products for clean REST API design.
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Query Parameters (optional):**
-| Param       | Type   | Default     | Options                   |
-|-------------|--------|-------------|---------------------------|
-| `page`      | number | 1           |                           |
-| `limit`     | number | 20          | 1–100                     |
-| `sortBy`    | string | `createdAt` | `createdAt`, `rating`     |
-| `sortOrder` | string | `desc`      | `asc`, `desc`             |
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "reviews": [ { "rating": 5, "title": "Excellent toolkit!", ... } ],
-    "meta": { "total": 12, "page": 1, "limit": 20, "totalPages": 1 }
-  }
-}
-```
-
----
-
-## 📦 9. Orders — `/api/v1/orders`
-
-> All routes require `Authorization: Bearer {{access_token}}`
-> Orders are user-scoped — you can only see your own orders.
-
----
-
-### POST — Create Order _(🔒 Protected)_
-
-```
-POST {{base_url}}/orders
-```
-
-Validates stock availability, calculates total from current product prices, and decrements stock atomically.
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
-```json
-{
-  "items": [
-    { "productId": "{{product_id}}", "quantity": 2 }
-  ],
-  "shippingAddress": {
-    "street": "123 Legal Avenue",
-    "city": "Mumbai",
-    "state": "Maharashtra",
-    "zipCode": "400001",
-    "country": "India"
-  },
-  "paymentMethod": "credit_card"
-}
-```
-
-Payment methods: `credit_card`, `debit_card`, `paypal`, `bank_transfer`, `cash_on_delivery`.
-
-**Success Response (201):**
-```json
-{
-  "success": true,
-  "message": "Order placed successfully.",
-  "data": {
-    "order": {
-      "id": "65f1a2b3c4d5e6f7a8b9c200",
-      "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "items": [
-        { "productId": "...", "name": "Premium Legal Toolkit", "quantity": 2, "price": 299.99 }
-      ],
-      "totalAmount": 599.98,
-      "status": "pending",
-      "shippingAddress": { ... },
-      "paymentMethod": "credit_card",
-      "createdAt": "2026-04-03T10:00:00.000Z"
-    }
-  }
-}
-```
-
-> Copy `data.order.id` → `order_id` env var.
-
-**Error Response (400 — insufficient stock):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INSUFFICIENT_STOCK",
-    "message": "Insufficient stock for \"Premium Legal Toolkit\". Available: 5, Requested: 10."
-  }
-}
-```
-
----
-
-### GET — List Orders _(🔒 Protected)_
-
-```
-GET {{base_url}}/orders
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Query Parameters (optional):**
-| Param       | Type   | Default     | Options                                     |
-|-------------|--------|-------------|---------------------------------------------|
-| `page`      | number | 1           |                                             |
-| `limit`     | number | 20          | 1–100                                       |
-| `status`    | string | _(all)_     | `pending`, `confirmed`, `shipped`, `delivered`, `cancelled` |
-| `sortBy`    | string | `createdAt` | `createdAt`, `totalAmount`, `status`        |
-| `sortOrder` | string | `desc`      | `asc`, `desc`                               |
-
-**Example:**
-```
-GET {{base_url}}/orders?status=pending&sortBy=createdAt&sortOrder=desc
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "orders": [ { ... } ],
-    "meta": { "total": 10, "page": 1, "limit": 20, "totalPages": 1 }
-  }
-}
-```
-
----
-
-### GET — Order Statistics _(🔒 Protected)_
-
-```
-GET {{base_url}}/orders/stats
-```
-
-Returns aggregated stats for the authenticated user's orders.
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "stats": {
-      "byStatus": [
-        { "_id": "delivered", "count": 5, "totalAmount": 1499.95 },
-        { "_id": "pending", "count": 2, "totalAmount": 599.98 }
-      ],
-      "overall": {
-        "totalOrders": 7,
-        "totalSpent": 2099.93,
-        "averageOrderValue": 299.99
-      }
-    }
-  }
-}
-```
-
----
-
-### GET — Get Order by ID _(🔒 Protected)_
-
-```
-GET {{base_url}}/orders/{{order_id}}
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "order": {
-      "id": "65f1a2b3c4d5e6f7a8b9c200",
-      "items": [ ... ],
-      "totalAmount": 599.98,
-      "status": "pending",
-      "shippingAddress": { ... }
-    }
-  }
-}
-```
-
----
-
-### PATCH — Update Order Status _(🔒 Protected)_
-
-```
-PATCH {{base_url}}/orders/{{order_id}}/status
-```
-
-Enforces a state machine: `pending → confirmed → shipped → delivered`. Invalid transitions are rejected.
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
-```json
-{
-  "status": "confirmed"
-}
-```
-
-Valid `status` values: `confirmed`, `shipped`, `delivered`.
-
-**Valid Transitions:**
-| From        | Allowed Targets              |
-|-------------|------------------------------|
-| `pending`   | `confirmed`, `cancelled`     |
-| `confirmed` | `shipped`, `cancelled`       |
-| `shipped`   | `delivered`                  |
-| `delivered` | _(terminal — no transitions)_|
-| `cancelled` | _(terminal — no transitions)_|
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Order status updated.",
-  "data": { "order": { "status": "confirmed", ... } }
-}
-```
-
-**Error Response (400 — invalid transition):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INVALID_STATUS_TRANSITION",
-    "message": "Cannot transition from \"delivered\" to \"confirmed\". Allowed: none (terminal state)."
-  }
-}
-```
-
----
-
-### PATCH — Cancel Order _(🔒 Protected)_
-
-```
-PATCH {{base_url}}/orders/{{order_id}}/cancel
-```
-
-Cancels an order (only from `pending` or `confirmed` states). Automatically restores product stock.
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-```
-
-**Body (raw JSON — optional):**
-```json
-{
-  "reason": "Changed my mind"
-}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Order cancelled successfully.",
-  "data": {
-    "order": {
-      "status": "cancelled",
-      "cancelledAt": "2026-04-03T12:00:00.000Z",
-      "cancelReason": "Changed my mind"
-    }
-  }
-}
-```
-
----
-
-## ⭐ 10. Reviews — `/api/v1/reviews`
-
-> All routes require `Authorization: Bearer {{access_token}}`
-> One review per user per product (enforced by unique index).
-
----
-
-### POST — Add Review _(🔒 Protected)_
-
-```
-POST {{base_url}}/reviews
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
-```json
-{
-  "productId": "{{product_id}}",
-  "rating": 5,
-  "title": "Excellent toolkit!",
-  "comment": "This legal toolkit has everything I need. The contract templates are comprehensive and the AI analysis integration is seamless."
-}
-```
-
-`rating`: integer 1–5 (required). `title` and `comment` are optional.
-
-**Success Response (201):**
-```json
-{
-  "success": true,
-  "message": "Review added successfully.",
-  "data": {
-    "review": {
-      "id": "65f1a2b3c4d5e6f7a8b9c300",
-      "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "productId": "65f1a2b3c4d5e6f7a8b9c100",
-      "rating": 5,
-      "title": "Excellent toolkit!",
-      "comment": "...",
-      "createdAt": "2026-04-03T10:00:00.000Z"
-    }
-  }
-}
-```
-
-> Copy `data.review.id` → `review_id` env var.
-
-**Error Response (409 — duplicate review):**
-```json
-{
-  "success": false,
-  "error": { "code": "DUPLICATE_REVIEW", "message": "You have already reviewed this product." }
-}
-```
-
----
-
-### GET — My Reviews _(🔒 Protected)_
-
-```
-GET {{base_url}}/reviews/my
-```
-
-Returns all reviews by the authenticated user with populated product info.
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Query Parameters (optional):**
-| Param  | Type   | Default |
-|--------|--------|---------|
-| `page` | number | 1       |
-| `limit`| number | 20      |
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "reviews": [
-      {
-        "id": "...",
-        "rating": 5,
-        "title": "Excellent toolkit!",
-        "productId": { "name": "Premium Legal Toolkit", "price": 299.99 }
-      }
-    ],
-    "meta": { "total": 3, "page": 1, "limit": 20, "totalPages": 1 }
-  }
-}
-```
-
----
-
-### GET — Product Reviews _(🔒 Protected)_
-
-```
-GET {{base_url}}/reviews/product/{{product_id}}
-```
-
-Returns all reviews for a specific product with populated reviewer info.
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Query Parameters (optional):**
-| Param       | Type   | Default     | Options                   |
-|-------------|--------|-------------|---------------------------|
-| `page`      | number | 1           |                           |
-| `limit`     | number | 20          | 1–100                     |
-| `sortBy`    | string | `createdAt` | `createdAt`, `rating`     |
-| `sortOrder` | string | `desc`      | `asc`, `desc`             |
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "reviews": [
-      {
-        "id": "...",
-        "rating": 5,
-        "title": "Excellent!",
-        "userId": { "name": "Vishal Sanam", "email": "vishal@example.com" }
-      }
-    ],
-    "meta": { "total": 12, "page": 1, "limit": 20, "totalPages": 1 }
-  }
-}
-```
-
----
-
-### DELETE — Delete Review _(🔒 Protected — Author only)_
-
-```
-DELETE {{base_url}}/reviews/{{review_id}}
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Body:** _(empty)_
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Review deleted successfully."
-}
-```
-
-> Deleting a review triggers async recalculation of the product's average rating.
-
----
-
-## 📊 11. Analytics — `/api/v1/analytics`
-
-> All routes require `Authorization: Bearer {{admin_token}}` + **`role: admin`**.
-> Uses MongoDB aggregation pipelines on Order, Product, Review, and User collections.
-
----
-
-### GET — Sales Analytics _(🔒 Admin only)_
-
-```
-GET {{base_url}}/analytics/sales
-```
-
-**Headers:**
-```
-Authorization: Bearer {{admin_token}}
-```
-
-**Query Parameters (optional):**
-| Param    | Type   | Default | Options / Description                                |
-|----------|--------|---------|------------------------------------------------------|
-| `period` | string | `30d`   | Time period: `7d`, `30d`, `90d`, `6m`, `12m`, etc.  |
-
-**Example:**
-```
-GET {{base_url}}/analytics/sales?period=30d
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "period": "30d",
-    "summary": {
-      "totalRevenue": 15299.50,
-      "totalOrders": 42,
-      "avgOrderValue": 364.27,
-      "totalItemsSold": 98
-    },
-    "salesOverTime": [
-      { "_id": { "year": 2026, "month": 4, "day": 1 }, "totalRevenue": 2999.00, "orderCount": 8, "avgOrderValue": 374.88 }
-    ],
-    "byStatus": [
-      { "_id": "delivered", "count": 30 },
-      { "_id": "pending", "count": 8 },
-      { "_id": "cancelled", "count": 4 }
-    ]
-  }
-}
-```
-
----
-
-### GET — Product Performance _(🔒 Admin only)_
-
-```
-GET {{base_url}}/analytics/products
-```
-
-**Headers:**
-```
-Authorization: Bearer {{admin_token}}
-```
-
-**Query Parameters (optional):**
-| Param   | Type   | Default | Description                    |
-|---------|--------|---------|--------------------------------|
-| `limit` | number | 10      | Number of top products to show |
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "topByRevenue": [
-      { "_id": "...", "productName": "Premium Legal Toolkit", "totalRevenue": 8999.70, "totalUnitsSold": 30, "orderCount": 25 }
-    ],
-    "ratingDistribution": [
-      { "_id": "4-5 stars", "count": 15 },
-      { "_id": "3-4 stars", "count": 8 }
-    ],
-    "byCategory": [
-      { "_id": "legal-tools", "productCount": 10, "avgPrice": 199.99, "avgRating": 4.2 }
-    ]
-  }
-}
-```
-
----
-
-### GET — User Activity _(🔒 Admin only)_
-
-```
-GET {{base_url}}/analytics/users
-```
-
-**Headers:**
-```
-Authorization: Bearer {{admin_token}}
-```
-
-**Query Parameters (optional):**
-| Param    | Type   | Default | Description |
-|----------|--------|---------|-------------|
-| `period` | string | `30d`   | Time period |
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "period": "30d",
-    "totalUsers": 42,
-    "newUsers": 8,
-    "topBuyers": [
-      { "_id": "...", "orderCount": 12, "totalSpent": 3599.88 }
-    ],
-    "topReviewers": [
-      { "_id": "...", "reviewCount": 8, "avgRating": 4.5 }
-    ]
-  }
-}
-```
-
----
-
-### GET — Revenue Trends _(🔒 Admin only)_
-
-```
-GET {{base_url}}/analytics/revenue
-```
-
-**Headers:**
-```
-Authorization: Bearer {{admin_token}}
-```
-
-**Query Parameters (optional):**
-| Param     | Type   | Default | Options / Description                |
-|-----------|--------|---------|--------------------------------------|
-| `period`  | string | `90d`   | Time period: `7d`, `30d`, `90d`, etc.|
-| `groupBy` | string | `day`   | `day`, `week`, `month`               |
-
-**Example:**
-```
-GET {{base_url}}/analytics/revenue?period=90d&groupBy=week
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "period": "90d",
-    "groupBy": "week",
-    "revenue": [
-      { "_id": { "year": 2026, "week": 13 }, "revenue": 4999.50, "orders": 15 },
-      { "_id": { "year": 2026, "week": 14 }, "revenue": 6299.00, "orders": 20 }
-    ]
-  }
-}
-```
-
----
-
-### GET — Top Products by Sales _(🔒 Admin only)_
-
-```
-GET {{base_url}}/analytics/top-products
-```
-
-**Headers:**
-```
-Authorization: Bearer {{admin_token}}
-```
-
-**Query Parameters (optional):**
-| Param    | Type   | Default | Description                      |
-|----------|--------|---------|----------------------------------|
-| `limit`  | number | 10      | Number of top products to return |
-| `period` | string | `30d`   | Time period                      |
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "period": "30d",
-    "topProducts": [
-      {
-        "_id": "...",
-        "name": "Premium Legal Toolkit",
-        "totalSold": 30,
-        "totalRevenue": 8999.70,
-        "orderCount": 25
-      }
-    ]
-  }
-}
-```
-
----
-
-## 🌍 12. Enrichment — `/api/v1/enrichment`
-
-> All routes require `Authorization: Bearer {{access_token}}`
-> These call external public APIs. Non-critical — degrade gracefully.
-
----
-
-### GET — Country Info _(🔒 Protected)_
-
-```
-GET {{base_url}}/enrichment/country/India
-```
-
-Replace `India` with any country name (min 2 characters).
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "country": {
-    "name": "India",
-    "capital": "New Delhi",
-    "currency": { "INR": { "name": "Indian rupee", "symbol": "₹" } },
-    "region": "Asia",
-    "flag": "🇮🇳"
-  }
-}
-```
-
----
-
-### GET — World Time _(🔒 Protected)_
-
-```
-GET {{base_url}}/enrichment/time/Asia/Kolkata
-```
-
-Replace `Asia/Kolkata` with any valid IANA timezone (e.g. `America/New_York`, `Europe/London`).
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "time": {
-    "timezone": "Asia/Kolkata",
-    "datetime": "2026-03-03T22:50:00.000+05:30",
-    "utc_offset": "+05:30"
-  }
-}
-```
-
----
-
-### GET — Check Holiday _(🔒 Protected)_
-
-```
-GET {{base_url}}/enrichment/holidays?country=IN&date=2026-03-15
-```
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Query Parameters (required):**
-| Param     | Description                         | Example        |
-|-----------|-------------------------------------|----------------|
-| `country` | ISO 2-letter country code           | `IN`, `US`, `GB` |
-| `date`    | Date to check in `YYYY-MM-DD` format | `2026-03-15`   |
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "holiday": {
-    "isHoliday": false,
-    "holidays": []
-  }
-}
-```
-
----
-
-### GET — Public Holidays for Year _(🔒 Protected)_
-
-```
-GET {{base_url}}/enrichment/holidays/US/2026
-```
-
-Replace `US` with any 2-letter ISO country code. Replace `2026` with any year (2000–2100).
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "holidays": [
-      {
-        "date": "2026-01-01",
-        "localName": "New Year's Day",
-        "name": "New Year's Day",
-        "countryCode": "US"
-      }
-    ],
-    "country": "US",
-    "year": 2026
-  }
-}
-```
-
-**Error Response (400 — invalid country code):**
-```json
-{
-  "success": false,
-  "error": { "code": "VALIDATION_ERROR", "message": "Country must be a 2-letter ISO code (e.g., US, GB)." }
-}
-```
-
-**Error Response (400 — invalid year):**
-```json
-{
-  "success": false,
-  "error": { "code": "VALIDATION_ERROR", "message": "Year must be a valid number between 2000 and 2100." }
-}
-```
-
----
-
-### GET — IP Geolocation _(🔒 Protected)_
-
-```
-GET {{base_url}}/enrichment/ip/8.8.8.8
-```
-
-Replace `8.8.8.8` with any valid IPv4 or IPv6 address. Useful for flagging logins from unexpected locations.
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "ipInfo": {
-      "ip": "8.8.8.8",
-      "city": "Mountain View",
-      "region": "California",
-      "country": "US",
-      "org": "AS15169 Google LLC",
-      "timezone": "America/Los_Angeles"
-    }
-  }
-}
-```
-
-**Error Response (400 — invalid IP):**
-```json
-{
-  "success": false,
-  "error": { "code": "VALIDATION_ERROR", "message": "Invalid IP address format." }
-}
-```
-
----
-
-### GET — Validate Email _(🔒 Protected)_
+### GET — Validate Email
 
 ```
 GET {{base_url}}/enrichment/email/validate?email=user@example.com
-```
-
-Validates email syntax, MX records, and checks if it is a disposable address (EVA + Disify).
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Query Parameters (required):**
-| Param   | Description              | Example              |
-|---------|--------------------------|----------------------|
-| `email` | Email address to validate | `user@example.com`   |
+Runs syntax + MX record check (EVA) and disposable email detection (Disify) in parallel.
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "data": {
     "email": "user@example.com",
-    "validation": {
-      "valid": true,
-      "mx_records": true
-    },
-    "disposable": {
-      "disposable": false,
-      "domain": "example.com"
-    }
+    "validation": { "valid": true, "disposable": false, "mx": true },
+    "disposable": { "isDisposable": false }
   }
-}
-```
-
-**Error Response (400 — missing/invalid email):**
-```json
-{
-  "success": false,
-  "error": { "code": "VALIDATION_ERROR", "message": "A valid email address is required." }
 }
 ```
 
 ---
 
-### GET — Email Reputation _(🔒 Protected)_
+### GET — Email Reputation
 
 ```
 GET {{base_url}}/enrichment/email/reputation?email=user@example.com
-```
-
-Returns threat/risk reputation scoring for an email address (EmailRep).
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Query Parameters (required):**
-| Param   | Description              | Example              |
-|---------|--------------------------|----------------------|
-| `email` | Email address to check    | `user@example.com`   |
-
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": {
-    "email": "user@example.com",
-    "reputation": {
-      "reputation": "high",
-      "suspicious": false,
-      "references": 15,
-      "details": {
-        "blacklisted": false,
-        "malicious_activity": false,
-        "credentials_leaked": false,
-        "data_breach": false
-      }
-    }
-  }
-}
-```
-
-**Fallback Response (200 — service unavailable):**
-```json
-{
-  "success": true,
-  "data": {
-    "email": "user@example.com",
-    "reputation": { "note": "Reputation service unavailable" }
-  }
-}
+{ "success": true, "data": { "email": "user@example.com", "reputation": { "risk": "low", "suspicious": false } } }
 ```
 
 ---
 
-### GET — Email Breach Check _(🔒 Protected)_
+### GET — Email Breach Check (HIBP)
 
 ```
 GET {{base_url}}/enrichment/email/breaches?email=user@example.com
-```
-
-Checks if an email has appeared in known data breaches via HaveIBeenPwned (HIBP). Requires `HIBP_API_KEY` to be configured in `.env`.
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
-**Query Parameters (required):**
-| Param   | Description              | Example              |
-|---------|--------------------------|----------------------|
-| `email` | Email address to check    | `user@example.com`   |
+Requires `HIBP_API_KEY` in `.env`. Degrades gracefully if not configured.
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "data": {
-    "email": "user@example.com",
-    "breaches": [
-      {
-        "Name": "ExampleBreach",
-        "BreachDate": "2023-01-15",
-        "Description": "..."
-      }
-    ]
-  }
-}
-```
-
-**Fallback Response (200 — no API key configured):**
-```json
-{
-  "success": true,
-  "data": {
-    "email": "user@example.com",
-    "breaches": { "note": "Breach check unavailable — HIBP_API_KEY may not be configured." }
-  }
-}
+{ "success": true, "data": { "email": "user@example.com", "breaches": { "count": 2, "breaches": [{ "Name": "Adobe", "BreachDate": "2013-10-04" }] } } }
 ```
 
 ---
 
-### GET — Currency Exchange Rate _(🔒 Protected)_
+### GET — Exchange Rate (Single Pair)
 
 ```
 GET {{base_url}}/enrichment/currency/rate?from=USD&to=EUR
-```
-
-Returns the latest exchange rate between two currencies (Frankfurter / ECB data).
-
-**Headers:**
-```
-Authorization: Bearer {{access_token}}
-```
-
-**Query Parameters (required):**
-| Param  | Description                  | Example |
-|--------|------------------------------|---------|
-| `from` | Source currency (3-letter ISO) | `USD`   |
-| `to`   | Target currency (3-letter ISO) | `EUR`   |
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "exchange": {
-      "base": "USD",
-      "target": "EUR",
-      "rate": 0.9234,
-      "date": "2026-03-31"
-    }
-  }
-}
-```
-
-**Error Response (400 — missing params):**
-```json
-{
-  "success": false,
-  "error": { "code": "VALIDATION_ERROR", "message": "Both \"from\" and \"to\" currency codes are required (e.g., USD, EUR)." }
-}
-```
-
-**Error Response (400 — invalid code):**
-```json
-{
-  "success": false,
-  "error": { "code": "VALIDATION_ERROR", "message": "Currency codes must be 3-letter ISO codes (e.g., USD, EUR, GBP)." }
-}
-```
-
----
-
-### GET — Multiple Currency Exchange Rates _(🔒 Protected)_
-
-```
-GET {{base_url}}/enrichment/currency/rates?base=USD&targets=EUR,GBP,JPY
-```
-
-Returns exchange rates from a base currency to multiple target currencies.
-
-**Headers:**
-```
 Authorization: Bearer {{access_token}}
 ```
 
 **Query Parameters:**
-| Param     | Required | Description                                      | Example         |
-|-----------|----------|--------------------------------------------------|-----------------|
-| `base`    | Yes      | Base currency (3-letter ISO)                      | `USD`           |
-| `targets` | No       | Comma-separated target currencies. If omitted, returns all available rates. | `EUR,GBP,JPY`  |
 
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "exchange": {
-      "base": "USD",
-      "date": "2026-03-31",
-      "rates": {
-        "EUR": 0.9234,
-        "GBP": 0.7891,
-        "JPY": 149.52
-      }
-    }
-  }
-}
-```
+| Param  | Required | Description              |
+|--------|----------|--------------------------|
+| `from` | Yes      | 3-letter ISO code (USD)  |
+| `to`   | Yes      | 3-letter ISO code (EUR)  |
 
-**Error Response (400 — missing base):**
+**Success (200):**
 ```json
-{
-  "success": false,
-  "error": { "code": "VALIDATION_ERROR", "message": "Base currency code is required (e.g., USD)." }
-}
+{ "success": true, "data": { "exchange": { "base": "USD", "target": "EUR", "rate": 0.9215, "date": "2026-04-08" } } }
 ```
 
 ---
 
-## 🛡️ 13. Admin — `/api/v1/admin` ✅
+### GET — Exchange Rates (Multiple Targets)
 
-> All routes require `Authorization: Bearer {{admin_token}}` + **`role: admin`**.
-
-### 🔑 Getting Admin Access
-
-**Step 1 — Seed the admin user (run once on a fresh database):**
-```bash
-npm run seed
 ```
-Default credentials (from `.env`):
-- Email: `admin@lexai.io`
-- Password: `Admin112233`
-
-**Step 2 — Login with admin credentials:**
+GET {{base_url}}/enrichment/currency/rates?base=USD&targets=EUR,GBP,JPY
+Authorization: Bearer {{access_token}}
 ```
-POST {{base_url}}/auth/login
-Content-Type: application/json
 
-{
-  "email": "admin@lexai.io",
-  "password": "Admin112233"
-}
+**Query Parameters:**
+
+| Param     | Required | Description                          |
+|-----------|----------|--------------------------------------|
+| `base`    | Yes      | 3-letter ISO base currency           |
+| `targets` | No       | Comma-separated target currency list |
+
+**Success (200):**
+```json
+{ "success": true, "data": { "exchange": { "base": "USD", "date": "2026-04-08", "rates": { "EUR": 0.9215, "GBP": 0.7891, "JPY": 151.23 } } } }
 ```
-Copy `data.accessToken` → set as `admin_token` in your Postman environment.
-
-> ⚠️ Use `{{admin_token}}` (not `{{access_token}}`) for all admin endpoints so you don't overwrite your regular user token.
 
 ---
 
-### GET — Platform Stats _(🔒 Admin only)_ ✅
+## 🛡️ 9. Admin — `/api/v1/admin`
+
+> All routes require `Authorization: Bearer {{admin_token}}` (admin role only).
+> Rate limited: 5 requests / 15 min.
+
+### GET — Platform Stats _(🔒 Admin only)_
 
 ```
 GET {{base_url}}/admin/stats
-```
-
-**Headers:**
-```
 Authorization: Bearer {{admin_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "data": {
     "stats": {
-      "totalUsers": 42,
-      "totalOrgs": 8,
-      "totalContracts": 156,
-      "totalAnalyses": 89,
-      "analysesLast30Days": 23,
-      "averageRiskScore": 6.4,
-      "queueDepth": 0
+      "totalUsers": 120,
+      "totalOrgs": 35,
+      "totalContracts": 480,
+      "totalAnalyses": 310,
+      "analysesLast30Days": 45,
+      "averageRiskScore": 6.3,
+      "queueDepth": 2
     }
   }
 }
@@ -2751,25 +1181,21 @@ Authorization: Bearer {{admin_token}}
 
 ---
 
-### GET — Queue Status _(🔒 Admin only)_  ✅
+### GET — Queue Status _(🔒 Admin only)_
 
 ```
 GET {{base_url}}/admin/queue/status
-```
-
-**Headers:**
-```
 Authorization: Bearer {{admin_token}}
 ```
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "data": {
     "queue": {
       "name": "lexai.analysis.queue",
-      "messageCount": 0,
+      "messageCount": 3,
       "consumerCount": 1,
       "dlxMessageCount": 0
     }
@@ -2777,87 +1203,54 @@ Authorization: Bearer {{admin_token}}
 }
 ```
 
+`dlxMessageCount` = jobs that failed all retries (dead letter queue).
+
 ---
 
-### GET — List All Users _(🔒 Admin only)_  ✅
+### GET — List All Users _(🔒 Admin only)_
 
 ```
 GET {{base_url}}/admin/users
-```
-
-**Headers:**
-```
 Authorization: Bearer {{admin_token}}
 ```
 
 **Query Parameters (optional):**
-| Param   | Default |
-|---------|---------|
-| `page`  | 1       |
-| `limit` | 20      |
 
-**Example:**
-```
-GET {{base_url}}/admin/users?page=1&limit=20
-```
+| Param   | Default | Description |
+|---------|---------|-------------|
+| `page`  | 1       |             |
+| `limit` | 20      |             |
 
-**Success Response (200):**
+**Success (200):**
 ```json
 {
   "success": true,
   "data": {
-    "users": [ { ... }, { ... } ],
-    "meta": { "total": 42, "page": 1, "limit": 20, "totalPages": 3 }
+    "users": [ { "_id": "...", "name": "...", "email": "...", "role": "viewer", "isActive": true } ],
+    "meta": { "total": 120, "page": 1, "limit": 20, "totalPages": 6 }
   }
 }
 ```
 
 ---
 
-### POST — Create User _(🔒 Admin only)_
+### POST — Create User (No OTP) _(🔒 Admin only)_
 
 ```
 POST {{base_url}}/admin/users
-```
-
-Admin-created users are pre-verified and skip the OTP email flow entirely.
-
-**Headers:**
-```
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON):**
 ```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "SecurePass@123",
-  "role": "viewer"
-}
+{ "name": "New User", "email": "newuser@example.com", "password": "SecurePass@123", "role": "viewer" }
 ```
 
-Roles: `"admin"`, `"manager"`, `"viewer"` — **required, no default**.
+Creates a pre-verified user — skips the OTP email flow. Roles: `admin`, `manager`, `viewer`.
 
-**Password rules:** min 8 chars, must contain uppercase, lowercase, digit, special char.
-
-**Success Response (201):**
+**Success (201):**
 ```json
-{
-  "success": true,
-  "message": "User created successfully.",
-  "data": {
-    "user": {
-      "id": "65f1a2b3c4d5e6f7a8b9c0d1",
-      "name": "John Doe",
-      "email": "john@example.com",
-      "role": "viewer",
-      "emailVerified": true,
-      "isActive": true
-    }
-  }
-}
+{ "success": true, "message": "User created successfully.", "data": { "user": { ... } } }
 ```
 
 ---
@@ -2866,32 +1259,19 @@ Roles: `"admin"`, `"manager"`, `"viewer"` — **required, no default**.
 
 ```
 PATCH {{base_url}}/admin/users/{{user_id}}
-```
-
-Update a user's name, role, or active status. Send only the fields you want to change.
-
-**Headers:**
-```
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 ```
 
-**Body (raw JSON — all fields optional, send only what you want to change):**
 ```json
-{
-  "name": "John Updated",
-  "role": "manager",
-  "isActive": true
-}
+{ "role": "manager", "isActive": true, "name": "Updated Name" }
 ```
 
-**Success Response (200):**
+Allowed fields: `name`, `role`, `isActive`. At least one required.
+
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "User updated successfully.",
-  "data": { "user": { ... } }
-}
+{ "success": true, "message": "User updated successfully.", "data": { "user": { ... } } }
 ```
 
 ---
@@ -2900,267 +1280,446 @@ Content-Type: application/json
 
 ```
 DELETE {{base_url}}/admin/users/{{user_id}}
-```
-
-Soft-deactivates the user (sets `isActive: false`). The account is not deleted — the user just can't log in.
-
-**Headers:**
-```
 Authorization: Bearer {{admin_token}}
 ```
 
-**Body:** _(empty)_
+Soft-deactivates the user (sets `isActive: false`). Cannot deactivate your own account.
 
-**Success Response (200):**
+**Success (200):**
 ```json
-{
-  "success": true,
-  "message": "User deactivated successfully."
-}
+{ "success": true, "message": "User deactivated successfully." }
 ```
-
-> To reactivate, use `PATCH /admin/users/{{user_id}}` with `{ "isActive": true }`.
 
 ---
 
-### GET — Audit Logs _(🔒 Admin only)_
+### GET — Global Audit Logs _(🔒 Admin only)_
 
 ```
 GET {{base_url}}/admin/audit-logs
-```
-
-**Headers:**
-```
 Authorization: Bearer {{admin_token}}
 ```
 
 **Query Parameters (optional):**
-| Param      | Description                      |
-|------------|----------------------------------|
-| `page`     | Page number (default: 1)         |
-| `limit`    | Results per page (default: 20)   |
-| `orgId`    | Filter by organisation           |
-| `userId`   | Filter by user                   |
-| `action`   | Filter by action (e.g. `user.login`) |
 
-**Success Response (200):**
+| Param   | Default | Description |
+|---------|---------|-------------|
+| `page`  | 1       |             |
+| `limit` | 20      |             |
+
+**Success (200):**
 ```json
 {
   "success": true,
   "data": {
-    "logs": [ { "action": "user.login", "userId": "...", "timestamp": "..." } ],
-    "meta": { "total": 100, "page": 1, "limit": 20, "totalPages": 5 }
+    "logs": [
+      { "action": "contract.deleted", "userId": "...", "orgId": "...", "timestamp": "2026-04-08T10:00:00Z", "meta": { ... } }
+    ],
+    "meta": { "total": 500, "page": 1, "limit": 20, "totalPages": 25 }
   }
 }
 ```
 
 ---
 
-## ⚠️ Common Error Responses
+## 🌍 10. Public APIs (from public-apis/public-apis)
 
-All errors follow this shape:
+> These are free public APIs relevant to LexAI. All require `Authorization: Bearer {{access_token}}` on the LexAI enrichment proxy, or can be called directly using the URLs below.
+> No calendar APIs are included.
+
+---
+
+### 🔐 Security APIs
+
+---
+
+#### GreyNoise — IP Threat Intelligence
+
+Check if an IP address is a known internet scanner, bot, or malicious actor. Useful for flagging suspicious login IPs.
+
+```
+GET https://api.greynoise.io/v3/community/{{ip}}
+Key: none required for community tier
+```
+
+**Example:** `GET https://api.greynoise.io/v3/community/8.8.8.8`
+
+**Success (200):**
+```json
+{
+  "ip": "8.8.8.8",
+  "noise": false,
+  "riot": true,
+  "classification": "benign",
+  "name": "Google Public DNS",
+  "link": "https://viz.greynoise.io/ip/8.8.8.8",
+  "last_seen": "2026-04-08",
+  "message": "This IP is commonly included in blocklists."
+}
+```
+
+- `noise: true` = actively scanning the internet (suspicious)
+- `riot: true` = known benign service (Google, Cloudflare, etc.)
+- Auth: No key needed for community endpoint (1000 req/day)
+- Docs: [https://docs.greynoise.io](https://docs.greynoise.io)
+
+---
+
+#### HaveIBeenPwned — Email Breach Check *(already in Section 8)*
+
+Already integrated at `GET {{base_url}}/enrichment/email/breaches?email=...`
+Requires `HIBP_API_KEY` in `.env`.
+
+---
+
+#### Shodan — Internet Device Search
+
+Search for internet-connected devices, open ports, and vulnerabilities by IP. Useful for security audits.
+
+```
+GET https://api.shodan.io/shodan/host/{{ip}}?key={{shodan_api_key}}
+```
+
+**Example:** `GET https://api.shodan.io/shodan/host/8.8.8.8?key=YOUR_KEY`
+
+**Success (200):**
+```json
+{
+  "ip_str": "8.8.8.8",
+  "org": "Google LLC",
+  "country_name": "United States",
+  "ports": [53, 443],
+  "vulns": [],
+  "last_update": "2026-04-08T00:00:00.000Z"
+}
+```
+
+- Auth: `apiKey` — get free key at [https://account.shodan.io](https://account.shodan.io)
+- Free tier: 1 query credit/scan
+- Add `SHODAN_API_KEY` to your `.env`
+- Docs: [https://developer.shodan.io/api](https://developer.shodan.io/api)
+
+---
+
+### 📧 Email APIs
+
+---
+
+#### Hunter — Email Finder & Verifier
+
+Find professional email addresses by domain or verify if an email is deliverable. Useful for org member invitations.
+
+```
+GET https://api.hunter.io/v2/email-verifier?email={{email}}&api_key={{hunter_api_key}}
+```
+
+**Example:** `GET https://api.hunter.io/v2/email-verifier?email=user@example.com&api_key=YOUR_KEY`
+
+**Success (200):**
+```json
+{
+  "data": {
+    "status": "valid",
+    "result": "deliverable",
+    "score": 92,
+    "email": "user@example.com",
+    "regexp": true,
+    "gibberish": false,
+    "disposable": false,
+    "webmail": false,
+    "mx_records": true,
+    "smtp_server": true,
+    "smtp_check": true
+  }
+}
+```
+
+- Auth: `apiKey` — free tier: 25 verifications/month at [https://hunter.io](https://hunter.io)
+- Add `HUNTER_API_KEY` to your `.env`
+- Docs: [https://hunter.io/api-documentation](https://hunter.io/api-documentation)
+
+---
+
+#### mailboxlayer — Email Validation
+
+Validate email addresses for syntax, MX records, SMTP, and disposable detection.
+
+```
+GET https://apilayer.net/api/check?access_key={{mailboxlayer_key}}&email={{email}}
+```
+
+**Example:** `GET https://apilayer.net/api/check?access_key=YOUR_KEY&email=user@example.com`
+
+**Success (200):**
+```json
+{
+  "email": "user@example.com",
+  "did_you_mean": "",
+  "user": "user",
+  "domain": "example.com",
+  "format_valid": true,
+  "mx_found": true,
+  "smtp_check": true,
+  "catch_all": false,
+  "role": false,
+  "disposable": false,
+  "free": false,
+  "score": 0.96
+}
+```
+
+- Auth: `apiKey` — free tier: 100 requests/month at [https://mailboxlayer.com](https://mailboxlayer.com)
+- Add `MAILBOXLAYER_API_KEY` to your `.env`
+- Docs: [https://mailboxlayer.com/documentation](https://mailboxlayer.com/documentation)
+
+---
+
+### 💱 Currency Exchange APIs
+
+---
+
+#### ExchangeRate-API — Free Currency Conversion *(no key required)*
+
+Free currency conversion with 1500+ req/month on free plan. Alternative to Frankfurter (already in Section 8).
+
+```
+GET https://open.er-api.com/v6/latest/{{base_currency}}
+```
+
+**Example:** `GET https://open.er-api.com/v6/latest/USD`
+
+**Success (200):**
+```json
+{
+  "result": "success",
+  "base_code": "USD",
+  "time_last_update_utc": "Wed, 08 Apr 2026 00:00:00 +0000",
+  "rates": {
+    "EUR": 0.9215,
+    "GBP": 0.7891,
+    "INR": 83.45,
+    "JPY": 151.23
+  }
+}
+```
+
+- Auth: None required for free tier
+- Free tier: 1500 requests/month
+- Docs: [https://www.exchangerate-api.com/docs/free](https://www.exchangerate-api.com/docs/free)
+
+---
+
+#### Frankfurter — ECB Exchange Rates *(already in Section 8)*
+
+Already integrated at `GET {{base_url}}/enrichment/currency/rate` and `/rates`. No key needed.
+
+---
+
+### 🌐 Geocoding / IP APIs
+
+---
+
+#### ipgeolocation — IP Geolocation
+
+Detailed IP geolocation with timezone, currency, and security flags. Free plan: 30k requests/month.
+
+```
+GET https://api.ipgeolocation.io/ipgeo?apiKey={{ipgeo_key}}&ip={{ip}}
+```
+
+**Example:** `GET https://api.ipgeolocation.io/ipgeo?apiKey=YOUR_KEY&ip=8.8.8.8`
+
+**Success (200):**
+```json
+{
+  "ip": "8.8.8.8",
+  "country_name": "United States",
+  "country_code2": "US",
+  "city": "Mountain View",
+  "time_zone": { "name": "America/Los_Angeles", "offset": -7 },
+  "currency": { "code": "USD", "name": "US Dollar" },
+  "security": { "threat_score": 0, "is_tor": false, "is_proxy": false, "is_bot": false }
+}
+```
+
+- Auth: `apiKey` — free tier: 30k req/month at [https://ipgeolocation.io](https://ipgeolocation.io)
+- Add `IPGEO_API_KEY` to your `.env`
+- Docs: [https://ipgeolocation.io/documentation](https://ipgeolocation.io/documentation)
+
+---
+
+### 🧠 Text Analysis APIs
+
+---
+
+#### Google Cloud Natural Language — Text Analysis
+
+Sentiment analysis, entity extraction, and syntax analysis on contract text. Useful for automated contract summarization.
+
+```
+POST https://language.googleapis.com/v1/documents:analyzeEntities?key={{google_nlp_key}}
+Content-Type: application/json
+```
 
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Access token is missing or invalid."
-  }
+  "document": {
+    "type": "PLAIN_TEXT",
+    "content": "This Non-Disclosure Agreement is between Party A and Party B, governed under the laws of India."
+  },
+  "encodingType": "UTF8"
 }
 ```
 
-| HTTP Code | Error Code          | Meaning                                    |
-|-----------|---------------------|-------------------------------------------|
-| `400`     | `VALIDATION_ERROR`  | Request body failed Joi validation         |
-| `400`     | `FILE_TOO_LARGE`    | Uploaded file exceeds 5MB                  |
-| `400`     | `UPLOAD_ERROR`      | Unsupported file type or multer error      |
-| `401`     | `UNAUTHORIZED`      | Missing or expired access token            |
-| `401`     | `TOKEN_EXPIRED`     | Access token has expired                   |
-| `403`     | `FORBIDDEN`         | Role not authorized for this action        |
-| `404`     | `NOT_FOUND`         | Resource not found                         |
-| `409`     | `CONFLICT`          | Duplicate resource (e.g. email taken)      |
-| `429`     | `TOO_MANY_REQUESTS` | Rate limit exceeded                        |
-| `500`     | `INTERNAL_ERROR`    | Unexpected server error                    |
-| `503`     | _(health check)_    | One or more services are down              |
+**Success (200):**
+```json
+{
+  "entities": [
+    { "name": "Party A", "type": "PERSON", "salience": 0.45 },
+    { "name": "Party B", "type": "PERSON", "salience": 0.40 },
+    { "name": "India", "type": "LOCATION", "salience": 0.15 }
+  ],
+  "language": "en"
+}
+```
+
+- Auth: `apiKey` — free tier: 5000 units/month at [https://cloud.google.com/natural-language](https://cloud.google.com/natural-language)
+- Add `GOOGLE_NLP_API_KEY` to your `.env`
+- Docs: [https://cloud.google.com/natural-language/docs/reference/rest](https://cloud.google.com/natural-language/docs/reference/rest)
 
 ---
 
-## 🔄 Recommended Testing Order
+#### Cloudmersive NLP — Natural Language Processing
+
+Text analysis including sentiment, entity detection, and language identification. Free tier: 800 calls/month.
 
 ```
-1.  GET    /health                              ← Verify all services are up
-
-# ── Admin setup (run npm run seed first) ──────────────────────────────────
-2.  POST   /auth/login (admin creds)            ← email: admin@lexai.io / Admin112233 → copy admin_token
-3.  POST   /admin/users                         ← Create a user directly; copy user_id
-4.  PATCH  /admin/users/{{user_id}}             ← Update role or status
-5.  GET    /admin/users                         ← List all users
-6.  GET    /admin/stats                         ← Platform stats
-7.  GET    /admin/queue/status                  ← RabbitMQ queue health
-8.  GET    /admin/audit-logs                    ← Global audit trail
-
-# ── Regular user flow ──────────────────────────────────────────────────────
-9.  POST   /auth/register                       ← Create account; copy otp from dev response
-10. POST   /auth/verify-email                   ← Verify OTP
-11. POST   /auth/login                          ← Copy access_token + user_id
-12. GET    /users/me                            ← Get your profile
-13. PATCH  /users/me                            ← Update your name
-14. GET    /auth/sessions                       ← Copy a jti → session_jti
-15. POST   /orgs                                ← Create org; copy org_id
-16. GET    /orgs/{{org_id}}                     ← View org
-17. POST   /contracts (file or JSON)            ← Upload; copy contract_id
-18. GET    /contracts                           ← List contracts
-19. GET    /contracts/{{contract_id}}           ← View single contract
-20. PATCH  /contracts/{{contract_id}}           ← Update contract
-21. POST   /contracts/{{contract_id}}/versions  ← Upload new version
-22. GET    /contracts/{{contract_id}}/versions  ← List versions
-23. POST   /contracts/{{contract_id}}/compare   ← Compare two versions
-24. GET    /contracts/{{contract_id}}/audit     ← View audit trail
-25. POST   /analyses                            ← Queue analysis; copy analysis_id
-26. GET    /analyses/{{analysis_id}}            ← Poll for result
-27. GET    /analyses/contract/{{contract_id}}   ← All analyses for contract
-28. GET    /notifications/unread-count          ← Check badge count
-29. GET    /notifications                       ← View notifications; copy notification_id
-30. PATCH  /notifications/{{notification_id}}/read  ← Mark one as read
-31. PATCH  /notifications/read-all              ← Mark all as read
-32. GET    /notifications/user                  ← User-scoped notifications
-33. DELETE /notifications/{{notification_id}}   ← Delete a notification
-
-# ── Products ──────────────────────────────────────────────────────────────
-34. POST   /products                            ← Create product; copy product_id
-35. GET    /products                            ← List products (pagination, filtering)
-36. GET    /products/search?search=legal        ← Full-text search
-37. GET    /products/{{product_id}}             ← Get product by ID
-38. PATCH  /products/{{product_id}}             ← Update product (owner)
-39. GET    /products/{{product_id}}/reviews     ← Get product reviews
-
-# ── Orders ────────────────────────────────────────────────────────────────
-40. POST   /orders                              ← Create order; copy order_id
-41. GET    /orders                              ← List user orders
-42. GET    /orders/stats                        ← Order statistics
-43. GET    /orders/{{order_id}}                 ← Get order by ID
-44. PATCH  /orders/{{order_id}}/status          ← Update status (confirm)
-45. PATCH  /orders/{{order_id}}/cancel          ← Cancel order (restores stock)
-
-# ── Reviews ───────────────────────────────────────────────────────────────
-46. POST   /reviews                             ← Add review; copy review_id
-47. GET    /reviews/my                          ← Get my reviews
-48. GET    /reviews/product/{{product_id}}      ← Get product reviews
-49. DELETE /reviews/{{review_id}}               ← Delete review (author)
-
-# ── Analytics (admin only) ────────────────────────────────────────────────
-50. GET    /analytics/sales                     ← Sales analytics
-51. GET    /analytics/products                  ← Product performance
-52. GET    /analytics/users                     ← User activity stats
-53. GET    /analytics/revenue                   ← Revenue trends
-54. GET    /analytics/top-products              ← Top products by sales
-
-# ── Enrichment APIs ───────────────────────────────────────────────────────
-55. GET    /enrichment/country/India            ← Country info
-56. GET    /enrichment/time/Asia/Kolkata        ← World time
-57. GET    /enrichment/holidays?country=IN&date=2026-03-15  ← Check specific holiday
-58. GET    /enrichment/holidays/US/2026         ← All holidays for a year
-59. GET    /enrichment/ip/8.8.8.8              ← IP geolocation
-60. GET    /enrichment/email/validate?email=user@example.com  ← Email validation
-61. GET    /enrichment/email/reputation?email=user@example.com ← Email reputation
-62. GET    /enrichment/email/breaches?email=user@example.com   ← Email breach check
-63. GET    /enrichment/currency/rate?from=USD&to=EUR           ← Single exchange rate
-64. GET    /enrichment/currency/rates?base=USD&targets=EUR,GBP ← Multiple rates
-
-# ── Cleanup ────────────────────────────────────────────────────────────────
-65. DELETE /products/{{product_id}}             ← Delete product (owner)
-66. DELETE /contracts/{{contract_id}}           ← Delete contract (admin/manager)
-67. DELETE /auth/sessions/{{session_jti}}       ← Revoke specific session
-68. DELETE /auth/sessions                       ← Revoke all sessions
-69. DELETE /admin/users/{{user_id}}             ← (Admin) Deactivate user
-70. POST   /auth/logout                         ← Blacklist tokens
+POST https://api.cloudmersive.com/nlp-v2/analytics/sentiment
+Content-Type: application/json
+Apikey: {{cloudmersive_key}}
 ```
+
+```json
+{
+  "TextToAnalyze": "This contract contains unfair penalty clauses and ambiguous jurisdiction terms."
+}
+```
+
+**Success (200):**
+```json
+{
+  "Successful": true,
+  "SentimentClassificationResult": "Negative",
+  "SentimentScoreResult": -0.72,
+  "SentenceCount": 1
+}
+```
+
+- Auth: `apiKey` — free tier: 800 calls/month at [https://cloudmersive.com](https://cloudmersive.com)
+- Add `CLOUDMERSIVE_API_KEY` to your `.env`
+- Docs: [https://cloudmersive.com/nlp-api](https://cloudmersive.com/nlp-api)
 
 ---
 
-## 📊 Complete API Endpoint Summary
+### ✅ Data Validation APIs
 
-| #  | Method   | URL                                              | Auth      | Description                        |
-|----|----------|--------------------------------------------------|-----------|------------------------------------|
-| 1  | `GET`    | `/health`                                        | None      | Health check                       |
-| 2  | `POST`   | `/api/v1/auth/register`                          | None      | Register new user                  |
-| 3  | `POST`   | `/api/v1/auth/verify-email`                      | None      | Verify email OTP                   |
-| 4  | `POST`   | `/api/v1/auth/resend-verification-email`         | None      | Resend OTP                         |
-| 5  | `POST`   | `/api/v1/auth/login`                             | None      | Login                              |
-| 6  | `POST`   | `/api/v1/auth/refresh-token`                     | Cookie    | Refresh access token               |
-| 7  | `POST`   | `/api/v1/auth/forgot-password`                   | None      | Send reset email                   |
-| 8  | `POST`   | `/api/v1/auth/reset-password`                    | None      | Reset password with token          |
-| 9  | `POST`   | `/api/v1/auth/logout`                            | Bearer    | Logout + blacklist tokens          |
-| 10 | `POST`   | `/api/v1/auth/change-password`                   | Bearer    | Change password                    |
-| 11 | `GET`    | `/api/v1/auth/sessions`                          | Bearer    | List active sessions               |
-| 12 | `DELETE` | `/api/v1/auth/sessions/:jti`                     | Bearer    | Revoke specific session            |
-| 13 | `DELETE` | `/api/v1/auth/sessions`                          | Bearer    | Revoke all sessions                |
-| 14 | `GET`    | `/api/v1/users/me`                               | Bearer    | Get my profile                     |
-| 15 | `PATCH`  | `/api/v1/users/me`                               | Bearer    | Update my profile                  |
-| 16 | `GET`    | `/api/v1/users/:id`                              | Admin     | Get user by ID                     |
-| 17 | `POST`   | `/api/v1/orgs`                                   | Bearer    | Create organization                |
-| 18 | `GET`    | `/api/v1/orgs/:orgId`                            | Bearer    | Get organization                   |
-| 19 | `PATCH`  | `/api/v1/orgs/:orgId`                            | Admin/Mgr | Update organization                |
-| 20 | `POST`   | `/api/v1/orgs/:orgId/invite`                     | Admin/Mgr | Invite member                      |
-| 21 | `POST`   | `/api/v1/orgs/:orgId/invite/accept`              | None      | Accept invitation                  |
-| 22 | `PATCH`  | `/api/v1/orgs/:orgId/members/:userId/role`       | Admin     | Change member role                 |
-| 23 | `DELETE` | `/api/v1/orgs/:orgId/members/:userId`            | Admin     | Remove member                      |
-| 24 | `POST`   | `/api/v1/contracts`                              | Bearer+Org| Upload contract (file or JSON)     |
-| 25 | `GET`    | `/api/v1/contracts`                              | Bearer+Org| List contracts                     |
-| 26 | `GET`    | `/api/v1/contracts/:id`                          | Bearer+Org| Get contract by ID                 |
-| 27 | `PATCH`  | `/api/v1/contracts/:id`                          | Bearer+Org| Update contract                    |
-| 28 | `DELETE` | `/api/v1/contracts/:id`                          | Admin/Mgr | Delete contract                    |
-| 29 | `POST`   | `/api/v1/contracts/:id/versions`                 | Bearer+Org| Upload new version                 |
-| 30 | `GET`    | `/api/v1/contracts/:id/versions`                 | Bearer+Org| List versions                      |
-| 31 | `POST`   | `/api/v1/contracts/:id/compare`                  | Bearer+Org| Compare versions                   |
-| 32 | `GET`    | `/api/v1/contracts/:id/audit`                    | Bearer+Org| Audit trail                        |
-| 33 | `POST`   | `/api/v1/analyses`                               | Bearer+Org| Request AI analysis                |
-| 34 | `GET`    | `/api/v1/analyses/:id`                           | Bearer+Org| Get analysis by ID                 |
-| 35 | `GET`    | `/api/v1/analyses/contract/:contractId`          | Bearer+Org| All analyses for contract          |
-| 36 | `GET`    | `/api/v1/notifications`                          | Bearer    | List notifications                 |
-| 37 | `GET`    | `/api/v1/notifications/user`                     | Bearer    | User-scoped notifications          |
-| 38 | `GET`    | `/api/v1/notifications/unread-count`             | Bearer    | Get unread count                   |
-| 39 | `PATCH`  | `/api/v1/notifications/read-all`                 | Bearer    | Mark all as read                   |
-| 40 | `PATCH`  | `/api/v1/notifications/:id/read`                 | Bearer    | Mark one as read                   |
-| 41 | `DELETE` | `/api/v1/notifications/:id`                      | Bearer    | Delete notification                |
-| 42 | `POST`   | `/api/v1/products`                               | Bearer    | Create product                     |
-| 43 | `GET`    | `/api/v1/products`                               | Bearer    | List products (paginated)          |
-| 44 | `GET`    | `/api/v1/products/search`                        | Bearer    | Full-text search products          |
-| 45 | `GET`    | `/api/v1/products/:id`                           | Bearer    | Get product by ID                  |
-| 46 | `PATCH`  | `/api/v1/products/:id`                           | Bearer    | Update product (owner)             |
-| 47 | `DELETE` | `/api/v1/products/:id`                           | Bearer    | Delete product (owner)             |
-| 48 | `GET`    | `/api/v1/products/:id/reviews`                   | Bearer    | Product reviews (via product route)|
-| 49 | `POST`   | `/api/v1/orders`                                 | Bearer    | Create order (validates stock)     |
-| 50 | `GET`    | `/api/v1/orders`                                 | Bearer    | List user orders                   |
-| 51 | `GET`    | `/api/v1/orders/stats`                           | Bearer    | Order statistics                   |
-| 52 | `GET`    | `/api/v1/orders/:id`                             | Bearer    | Get order by ID                    |
-| 53 | `PATCH`  | `/api/v1/orders/:id/status`                      | Bearer    | Update order status                |
-| 54 | `PATCH`  | `/api/v1/orders/:id/cancel`                      | Bearer    | Cancel order (restores stock)      |
-| 55 | `POST`   | `/api/v1/reviews`                                | Bearer    | Add review (1 per user/product)    |
-| 56 | `GET`    | `/api/v1/reviews/my`                             | Bearer    | User's reviews                     |
-| 57 | `GET`    | `/api/v1/reviews/product/:productId`             | Bearer    | Product reviews                    |
-| 58 | `DELETE` | `/api/v1/reviews/:id`                            | Bearer    | Delete review (author)             |
-| 59 | `GET`    | `/api/v1/analytics/sales`                        | Admin     | Sales analytics                    |
-| 60 | `GET`    | `/api/v1/analytics/products`                     | Admin     | Product performance                |
-| 61 | `GET`    | `/api/v1/analytics/users`                        | Admin     | User activity stats                |
-| 62 | `GET`    | `/api/v1/analytics/revenue`                      | Admin     | Revenue trends                     |
-| 63 | `GET`    | `/api/v1/analytics/top-products`                 | Admin     | Top products by sales              |
-| 64 | `GET`    | `/api/v1/enrichment/country/:name`               | Bearer    | Country info                       |
-| 65 | `GET`    | `/api/v1/enrichment/time/:timezone`              | Bearer    | World time                         |
-| 66 | `GET`    | `/api/v1/enrichment/holidays`                    | Bearer    | Check holiday by date              |
-| 67 | `GET`    | `/api/v1/enrichment/holidays/:country/:year`     | Bearer    | All holidays for a year            |
-| 68 | `GET`    | `/api/v1/enrichment/ip/:ip`                      | Bearer    | IP geolocation                     |
-| 69 | `GET`    | `/api/v1/enrichment/email/validate`              | Bearer    | Email validation                   |
-| 70 | `GET`    | `/api/v1/enrichment/email/reputation`            | Bearer    | Email reputation                   |
-| 71 | `GET`    | `/api/v1/enrichment/email/breaches`              | Bearer    | Email breach check (HIBP)          |
-| 72 | `GET`    | `/api/v1/enrichment/currency/rate`               | Bearer    | Single exchange rate               |
-| 73 | `GET`    | `/api/v1/enrichment/currency/rates`              | Bearer    | Multiple exchange rates            |
-| 74 | `GET`    | `/api/v1/admin/stats`                            | Admin     | Platform stats                     |
-| 75 | `GET`    | `/api/v1/admin/queue/status`                     | Admin     | Queue status                       |
-| 76 | `GET`    | `/api/v1/admin/users`                            | Admin     | List all users                     |
-| 77 | `POST`   | `/api/v1/admin/users`                            | Admin     | Create user (pre-verified)         |
-| 78 | `PATCH`  | `/api/v1/admin/users/:id`                        | Admin     | Update user                        |
-| 79 | `DELETE` | `/api/v1/admin/users/:id`                        | Admin     | Deactivate user                    |
-| 80 | `GET`    | `/api/v1/admin/audit-logs`                       | Admin     | Global audit trail                 |
+---
 
+#### VATlayer — VAT Number Validation
+
+Validate EU VAT numbers for business contracts. Useful when contracts involve EU companies.
+
+```
+GET https://apilayer.net/api/validate?access_key={{vatlayer_key}}&vat_number={{vat_number}}
+```
+
+**Example:** `GET https://apilayer.net/api/validate?access_key=YOUR_KEY&vat_number=GB123456789`
+
+**Success (200):**
+```json
+{
+  "valid": true,
+  "country_code": "GB",
+  "vat_number": "123456789",
+  "company_name": "Example Ltd",
+  "company_address": "123 Business St, London, UK"
+}
+```
+
+- Auth: `apiKey` — free tier: 100 requests/month at [https://vatlayer.com](https://vatlayer.com)
+- Add `VATLAYER_API_KEY` to your `.env`
+- Docs: [https://vatlayer.com/documentation](https://vatlayer.com/documentation)
+
+---
+
+#### PurgoMalum — Profanity / Content Filter *(no key required)*
+
+Check contract text for profanity or inappropriate content before storing. No API key needed.
+
+```
+GET https://www.purgomalum.com/service/json?text={{text_to_check}}
+```
+
+**Example:** `GET https://www.purgomalum.com/service/json?text=This is a clean contract`
+
+**Success (200):**
+```json
+{ "result": "This is a clean contract" }
+```
+
+If profanity is found, the words are replaced with `****` in the result.
+
+- Auth: None required
+- Free: Unlimited requests
+- Docs: [https://www.purgomalum.com](https://www.purgomalum.com)
+
+---
+
+### 📋 New Environment Variables for Public APIs
+
+Add these to your `.env` as needed (all optional — features degrade gracefully if not set):
+
+| Variable              | API             | Where to get it                              |
+|-----------------------|-----------------|----------------------------------------------|
+| `SHODAN_API_KEY`      | Shodan          | https://account.shodan.io                    |
+| `HUNTER_API_KEY`      | Hunter          | https://hunter.io/users/sign_up              |
+| `MAILBOXLAYER_API_KEY`| mailboxlayer    | https://mailboxlayer.com/product             |
+| `IPGEO_API_KEY`       | ipgeolocation   | https://ipgeolocation.io/signup.html         |
+| `GOOGLE_NLP_API_KEY`  | Google Cloud NLP| https://console.cloud.google.com             |
+| `CLOUDMERSIVE_API_KEY`| Cloudmersive    | https://account.cloudmersive.com/signup      |
+| `VATLAYER_API_KEY`    | VATlayer        | https://vatlayer.com/product                 |
+
+---
+
+## 🔑 Environment Variables Reference
+
+These are the only env vars relevant to this project. Set them in your `.env` file.
+
+| Variable                    | Required | Description                                          |
+|-----------------------------|----------|------------------------------------------------------|
+| `NODE_ENV`                  | Yes      | `development` or `production`                        |
+| `PORT`                      | Yes      | Server port (default `3500`)                         |
+| `API_VERSION`               | Yes      | API version prefix (default `v1`)                    |
+| `MONGO_URI`                 | Yes      | MongoDB connection string                            |
+| `REDIS_HOST`                | Yes      | Redis host                                           |
+| `REDIS_PORT`                | Yes      | Redis port (default `6379`)                          |
+| `REDIS_PASSWORD`            | No       | Redis password (leave empty for local)               |
+| `RABBITMQ_URL`              | Yes      | RabbitMQ AMQP URL                                    |
+| `PASETO_LOCAL_SECRET`       | Yes      | Min 32-char secret for PASETO token signing          |
+| `PASETO_ACCESS_EXPIRY`      | Yes      | Access token TTL (e.g. `15m`)                        |
+| `PASETO_REFRESH_EXPIRY`     | Yes      | Refresh token TTL (e.g. `7d`)                        |
+| `OPENROUTER_API_KEY`        | Yes      | OpenRouter key for AI analysis (`sk-or-v1-...`)      |
+| `OPENROUTER_BASE_URL`       | Yes      | `https://openrouter.ai/api/v1`                       |
+| `AI_PRIMARY_MODEL`          | Yes      | Primary AI model slug                                |
+| `AI_FALLBACK_MODEL`         | Yes      | Fallback AI model slug                               |
+| `MAX_FILE_SIZE_MB`          | Yes      | Max contract upload size in MB (default `5`)         |
+| `ALLOWED_MIME_TYPES`        | Yes      | Comma-separated allowed MIME types                   |
+| `ALLOWED_ORIGINS`           | Yes      | Comma-separated CORS origins                         |
+| `SMTP_HOST`                 | Yes      | SMTP server host                                     |
+| `SMTP_PORT`                 | Yes      | SMTP port (587 for TLS)                              |
+| `SMTP_USER`                 | Yes      | SMTP username                                        |
+| `SMTP_PASS`                 | Yes      | SMTP password                                        |
+| `EMAIL_FROM`                | Yes      | Sender address (e.g. `noreply@lexai.io`)             |
+| `IPINFO_TOKEN`              | No       | IPinfo token for higher rate limits (50k/mo free)    |
+| `HIBP_API_KEY`              | No       | HaveIBeenPwned API key for breach checks             |
+| `ADMIN_EMAIL`               | No       | Bootstrap admin email (seed script only)             |
+| `ADMIN_PASSWORD`            | No       | Bootstrap admin password (seed script only)          |

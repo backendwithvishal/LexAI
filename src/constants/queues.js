@@ -12,12 +12,7 @@ export const QUEUES = Object.freeze({
     ALERT: 'lexai.alert.queue',            // Contract expiry alert job queue
     DLX_EXCHANGE: 'lexai.dlx',             // Dead Letter Exchange for failed jobs
     DLQ_ANALYSIS: 'lexai.analysis.dlq',    // Dead Letter Queue — holds permanently failed analysis jobs
-
-    // ─── New Module Queues ──────────────────────────────────
     NOTIFICATION: 'lexai.notification.queue',  // Notification consumer queue
-    ANALYTICS_EVENTS: 'lexai.analytics.queue', // Analytics aggregation consumer queue
-    ORDER: 'lexai.order.queue',                // Order event queue
-    REVIEW: 'lexai.review.queue',              // Review event queue
 });
 
 // Redis Pub/Sub channel used by workers to push real-time events

@@ -12,6 +12,7 @@ import { getCurrentMonthKey, getQuotaResetDate } from '../utils/dateHelper.js';
 import HTTP from '../constants/httpStatus.js';
 import Organization from '../models/Organization.model.js';
 import logger from '../utils/logger.js';
+import { REDIS_KEYS } from '../constants/redisKeys.js';
 
 /**
  * Middleware that checks and enforces per-user monthly analysis quota.
@@ -39,7 +40,7 @@ export async function checkQuota(req, res, next) {
         }
 
         const monthKey = getCurrentMonthKey();
-        const quotaKey = `quota:${userId}:${monthKey}`;
+        const quotaKey = REDIS_KEYS.quota(userId, monthKey);
         const used = parseInt(await redis.get(quotaKey)) || 0;
 
         if (used >= planLimits.analysesPerMonth) {

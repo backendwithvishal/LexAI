@@ -80,22 +80,9 @@ export async function connectRabbitMQ(url) {
         const alertQueue = process.env.ALERT_QUEUE || 'lexai.alert.queue';
         await channel.assertQueue(alertQueue, { durable: true });
 
-        // ─── New Module Queues ──────────────────────────────────────
-        // Notification consumer queue — processes order/review events
+        // ─── Notification Queue ─────────────────────────────────────
         const notificationQueue = process.env.NOTIFICATION_QUEUE || 'lexai.notification.queue';
         await channel.assertQueue(notificationQueue, { durable: true });
-
-        // Analytics event consumer queue — async aggregation
-        const analyticsEventsQueue = process.env.ANALYTICS_EVENTS_QUEUE || 'lexai.analytics.queue';
-        await channel.assertQueue(analyticsEventsQueue, { durable: true });
-
-        // Order event queue
-        const orderQueue = process.env.ORDER_QUEUE || 'lexai.order.queue';
-        await channel.assertQueue(orderQueue, { durable: true });
-
-        // Review event queue
-        const reviewQueue = process.env.REVIEW_QUEUE || 'lexai.review.queue';
-        await channel.assertQueue(reviewQueue, { durable: true });
 
         logger.info('RabbitMQ queues and exchanges asserted');
     } catch (err) {

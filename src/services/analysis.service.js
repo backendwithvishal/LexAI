@@ -19,6 +19,7 @@ import { getRedisClient } from '../config/redis.js';
 import { publishToQueue } from '../config/rabbitmq.js';
 import { getCurrentMonthKey, secondsUntilEndOfMonth } from '../utils/dateHelper.js';
 import { QUEUES } from '../constants/queues.js';
+import { REDIS_KEYS } from '../constants/redisKeys.js';
 import * as auditService from './audit.service.js';
 import logger from '../utils/logger.js';
 import AppError from '../utils/AppError.js';
@@ -56,7 +57,7 @@ export async function requestAnalysis({ contractId, orgId, userId, version }) {
     }
 
     // Check cache — skip queuing if we already have a result for this content
-    const cached = await redis.get(`analysis:${contentHash}`);
+    const cached = await redis.get(REDIS_KEYS.analysis(contentHash));
     if (cached) {
         logger.debug('Analysis cache hit', { contractId, contentHash });
         const cachedResult = JSON.parse(cached);
@@ -65,7 +66,7 @@ export async function requestAnalysis({ contractId, orgId, userId, version }) {
 
     // Distributed lock — prevent duplicate jobs for the same content
     // Uses Redis SET with NX (only set if not exists) + EX (auto-expire)
-    const lockKey = `lock:analysis:${contentHash}`;
+    const lockKey = REDIS_KEYS.lockAnalysis(contentHash);
     const lockAcquired = await redis.set(lockKey, '1', 'EX', LOCK_TTL, 'NX');
 
     if (!lockAcquired) {
@@ -78,6 +79,8 @@ export async function requestAnalysis({ contractId, orgId, userId, version }) {
         if (existing) {
             return { analysisId: existing._id, status: existing.status, cached: false };
         }
+        // Lock exists but no analysis doc found — lock is stale, surface a clear error
+        throw new AppError('Analysis is already being processed. Please try again shortly.', 429, 'RATE_LIMITED');
     }
 
     // Create analysis record to track job progress
@@ -109,13 +112,13 @@ export async function requestAnalysis({ contractId, orgId, userId, version }) {
     // Increment quota only after the job is confirmed queued — avoids consuming
     // quota when the RabbitMQ publish fails and no job was actually created
     const monthKey = getCurrentMonthKey();
-    const quotaKey = `quota:${userId}:${monthKey}`;
+    const quotaKey = REDIS_KEYS.quota(userId, monthKey);
     const currentUsage = await redis.incr(quotaKey);
     if (currentUsage === 1) {
         // First analysis this month — set TTL to end of month
         await redis.expire(quotaKey, secondsUntilEndOfMonth());
     }
-    logger.info('Analysis job queued', { jobId, contractId, analysisId: analysis._id });
+    logger.info('Analysis job queued', { jobId, contractId, analysisId: analysis._id, orgId, userId, version: targetVersion });
 
     // Audit trail
     await auditService.log({

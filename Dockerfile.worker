@@ -35,4 +35,8 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
+# Workers don't expose HTTP — check process is alive via /proc
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD pgrep -f "node worker.js" || exit 1
+
 CMD ["node", "worker.js"]
