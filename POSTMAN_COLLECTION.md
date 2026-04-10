@@ -25,6 +25,11 @@ Create a Postman **Environment** with these variables:
 | `reset_token`      | *(from forgot-password email)* | Hex token for password reset       |
 | `session_jti`      | *(from GET /auth/sessions)*    | UUID JTI of a session to revoke    |
 | `invite_token`     | *(from invitation email)*      | Invitation acceptance token        |
+| `comment_id`       | *(from POST /comments)*        | MongoDB ObjectId of a comment      |
+| `template_id`      | *(from POST /templates)*       | MongoDB ObjectId of a template     |
+| `share_link_id`    | *(from POST /shares)*          | MongoDB ObjectId of a share link   |
+| `share_token`      | *(from share link creation)*   | 64-char hex token for public access|
+| `bookmark_contract_id` | *(from POST /bookmarks)*   | Contract ID of a bookmarked item   |
 
 > 🔒 **Protected routes** require: `Authorization: Bearer {{access_token}}`
 > 🍪 **Refresh token**: automatically stored as HttpOnly cookie named `refreshToken`
@@ -765,7 +770,206 @@ No body needed.
 
 ---
 
-## 🤖 6. Analyses — `/api/v1/analyses`
+## 🔄 6. Workflow Status — `/api/v1/contracts/:id/status`
+
+> Nested under `/contracts`. All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Status transitions track the full lifecycle of a contract.
+
+**Valid statuses:** `draft` → `review` → `approved` → `signed` → `active` → `expired` / `terminated`
+
+---
+
+### GET — Get Contract Status _(🔒 Protected)_
+
+```
+GET {{base_url}}/contracts/{{contract_id}}/status
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "status": {
+      "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+      "currentStatus": "draft",
+      "updatedAt": "2026-04-08T10:00:00.000Z",
+      "updatedBy": "65f1a2b3c4d5e6f7a8b9c0d1"
+    }
+  }
+}
+```
+
+---
+
+### PATCH — Update Contract Status _(🔒 Protected — Admin/Manager only)_
+
+```
+PATCH {{base_url}}/contracts/{{contract_id}}/status
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "status": "review", "note": "Sending to legal team for review" }
+```
+
+Field rules:
+- `status` — required, one of: `draft`, `review`, `approved`, `signed`, `active`, `expired`, `terminated`
+- `note` — optional, max 500 chars (reason for the status change)
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Contract status updated to \"review\".",
+  "data": {
+    "status": {
+      "currentStatus": "review",
+      "previousStatus": "draft",
+      "updatedAt": "2026-04-08T12:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+### GET — Get Status History _(🔒 Protected)_
+
+```
+GET {{base_url}}/contracts/{{contract_id}}/status/history
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "history": [
+      { "from": null, "to": "draft", "userId": "...", "note": null, "timestamp": "2026-04-08T10:00:00Z" },
+      { "from": "draft", "to": "review", "userId": "...", "note": "Sending to legal team for review", "timestamp": "2026-04-08T12:00:00Z" }
+    ]
+  }
+}
+```
+
+---
+
+## 💬 7. Comments — `/api/v1/contracts/:contractId/comments`
+
+> Nested under `/contracts`. All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Users can edit/delete their own comments. Admins can delete any comment.
+
+---
+
+### POST — Add Comment _(🔒 Protected)_
+
+```
+POST {{base_url}}/contracts/{{contract_id}}/comments
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "content": "This clause in section 3.2 seems overly broad. We should narrow the scope." }
+```
+
+Field rules:
+- `content` — required, 1–5000 chars, no control characters
+
+**Success (201):**
+```json
+{
+  "success": true,
+  "message": "Comment added.",
+  "data": {
+    "comment": {
+      "_id": "65f1a2b3c4d5e6f7a8b9c0e1",
+      "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+      "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
+      "content": "This clause in section 3.2 seems overly broad. We should narrow the scope.",
+      "createdAt": "2026-04-08T10:00:00.000Z"
+    }
+  }
+}
+```
+
+> Copy `data.comment._id` → `comment_id` env var.
+
+---
+
+### GET — List Comments _(🔒 Protected)_
+
+```
+GET {{base_url}}/contracts/{{contract_id}}/comments
+Authorization: Bearer {{access_token}}
+```
+
+**Optional query params:**
+
+| Param   | Default | Description |
+|---------|---------|-------------|
+| `page`  | 1       | 1–1000      |
+| `limit` | 20      | 1–50        |
+
+**Example:** `GET {{base_url}}/contracts/{{contract_id}}/comments?page=1&limit=10`
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "comments": [
+      { "_id": "...", "content": "...", "userId": "...", "createdAt": "..." }
+    ],
+    "meta": { "total": 5, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+---
+
+### PATCH — Edit Comment _(🔒 Protected — Own comments only)_
+
+```
+PATCH {{base_url}}/contracts/{{contract_id}}/comments/{{comment_id}}
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "content": "Updated: This clause should be limited to a 2-year non-compete." }
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Comment updated.",
+  "data": { "comment": { "_id": "...", "content": "Updated: This clause should be limited to a 2-year non-compete.", "updatedAt": "..." } }
+}
+```
+
+---
+
+### DELETE — Delete Comment _(🔒 Protected — Own or Admin)_
+
+```
+DELETE {{base_url}}/contracts/{{contract_id}}/comments/{{comment_id}}
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{ "success": true, "message": "Comment deleted." }
+```
+
+---
+
+## 🤖 8. Analyses — `/api/v1/analyses`
 
 > All routes require `Authorization: Bearer {{access_token}}` + org membership.
 
@@ -841,7 +1045,7 @@ Authorization: Bearer {{access_token}}
 
 ---
 
-## 🔔 7. Notifications — `/api/v1/notifications`
+## 🔔 9. Notifications — `/api/v1/notifications`
 
 > All routes require `Authorization: Bearer {{access_token}}`
 
@@ -960,7 +1164,7 @@ Authorization: Bearer {{access_token}}
 
 ---
 
-## 🌐 8. Enrichment — `/api/v1/enrichment`
+## 🌐 10. Enrichment — `/api/v1/enrichment`
 
 > All routes require `Authorization: Bearer {{access_token}}`
 > These are non-critical — they degrade gracefully if an external API is unavailable.
@@ -1149,7 +1353,7 @@ Authorization: Bearer {{access_token}}
 
 ---
 
-## 🛡️ 9. Admin — `/api/v1/admin`
+## 🛡️ 11. Admin — `/api/v1/admin`
 
 > All routes require `Authorization: Bearer {{admin_token}}` (admin role only).
 > Rate limited: 5 requests / 15 min.
@@ -1321,7 +1525,1048 @@ Authorization: Bearer {{admin_token}}
 
 ---
 
-## 🌍 10. Public APIs (from public-apis/public-apis)
+## 📊 12. Dashboard — `/api/v1/dashboard`
+
+> All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Read-only org-level analytics — no data mutation.
+
+---
+
+### GET — Org Statistics _(🔒 Protected)_
+
+```
+GET {{base_url}}/dashboard/stats
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "stats": {
+      "totalContracts": 48,
+      "totalAnalyses": 31,
+      "averageRiskScore": 5.8,
+      "contractsByType": { "NDA": 12, "Vendor": 18, "Employment": 8, "SaaS": 6, "Other": 4 },
+      "contractsByStatus": { "draft": 5, "active": 30, "expired": 8, "terminated": 5 },
+      "analysisCoverage": 64.5
+    }
+  }
+}
+```
+
+---
+
+### GET — Risk Distribution _(🔒 Protected)_
+
+```
+GET {{base_url}}/dashboard/risk-distribution
+Authorization: Bearer {{access_token}}
+```
+
+Returns contracts grouped by risk level (low / medium / high / critical).
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "distribution": {
+      "low": { "count": 15, "range": "0-3" },
+      "medium": { "count": 20, "range": "3.1-6" },
+      "high": { "count": 10, "range": "6.1-8" },
+      "critical": { "count": 3, "range": "8.1-10" }
+    }
+  }
+}
+```
+
+---
+
+### GET — Expiry Timeline _(🔒 Protected)_
+
+```
+GET {{base_url}}/dashboard/expiry-timeline
+Authorization: Bearer {{access_token}}
+```
+
+Returns contracts expiring in the next 30, 60, and 90 days.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "timeline": {
+      "next30Days": [{ "id": "...", "title": "Vendor Agreement", "expiryDate": "2026-05-05" }],
+      "next60Days": [ ... ],
+      "next90Days": [ ... ]
+    }
+  }
+}
+```
+
+---
+
+### GET — Recent Activity _(🔒 Protected)_
+
+```
+GET {{base_url}}/dashboard/recent-activity
+Authorization: Bearer {{access_token}}
+```
+
+**Optional query params:**
+
+| Param   | Default | Description                          |
+|---------|---------|--------------------------------------|
+| `limit` | 20      | Number of recent audit log entries   |
+
+**Example:** `GET {{base_url}}/dashboard/recent-activity?limit=10`
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "activity": [
+      { "action": "contract.created", "userId": "...", "resourceType": "Contract", "timestamp": "2026-04-08T10:00:00Z" },
+      { "action": "analysis.completed", "userId": "...", "resourceType": "Analysis", "timestamp": "2026-04-08T09:30:00Z" }
+    ]
+  }
+}
+```
+
+---
+
+## 🏷️ 13. Tags — `/api/v1/tags`
+
+> All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Rename and delete require **admin** or **manager** role.
+
+---
+
+### GET — List Tags _(🔒 Protected)_
+
+```
+GET {{base_url}}/tags
+Authorization: Bearer {{access_token}}
+```
+
+Returns all unique tags used across the org's contracts, with usage counts.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "tags": [
+      { "tag": "legal", "count": 12 },
+      { "tag": "2026", "count": 8 },
+      { "tag": "confidential", "count": 5 }
+    ]
+  }
+}
+```
+
+---
+
+### PATCH — Rename Tag _(🔒 Protected — Admin/Manager)_
+
+```
+PATCH {{base_url}}/tags/rename
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "oldTag": "legal", "newTag": "legal-docs" }
+```
+
+Field rules:
+- `oldTag` — required, 1–50 chars, auto-lowercased
+- `newTag` — required, 1–50 chars, auto-lowercased
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Tag \"legal\" renamed to \"legal-docs\".",
+  "data": { "oldTag": "legal", "newTag": "legal-docs", "contractsAffected": 12 }
+}
+```
+
+---
+
+### DELETE — Delete Tag _(🔒 Protected — Admin/Manager)_
+
+```
+DELETE {{base_url}}/tags/{{tag_name}}
+Authorization: Bearer {{access_token}}
+```
+
+**Example:** `DELETE {{base_url}}/tags/obsolete`
+
+Removes the tag from all contracts in the org.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Tag \"obsolete\" removed from 3 contracts.",
+  "data": { "tag": "obsolete", "contractsAffected": 3 }
+}
+```
+
+---
+
+## 🔖 14. Bookmarks — `/api/v1/bookmarks`
+
+> All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Bookmarks are user-scoped — each user has their own bookmarks.
+
+---
+
+### POST — Bookmark a Contract _(🔒 Protected)_
+
+```
+POST {{base_url}}/bookmarks
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "contractId": "{{contract_id}}", "note": "Review this NDA before Friday" }
+```
+
+Field rules:
+- `contractId` — required, 24-char hex ObjectId
+- `note` — optional, max 500 chars
+
+**Success (201):**
+```json
+{
+  "success": true,
+  "message": "Contract bookmarked.",
+  "data": {
+    "bookmark": {
+      "_id": "65f1a2b3c4d5e6f7a8b9c0e5",
+      "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
+      "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+      "note": "Review this NDA before Friday",
+      "createdAt": "2026-04-08T10:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+### GET — List Bookmarks _(🔒 Protected)_
+
+```
+GET {{base_url}}/bookmarks
+Authorization: Bearer {{access_token}}
+```
+
+**Optional query params:**
+
+| Param   | Default | Description |
+|---------|---------|-------------|
+| `page`  | 1       | 1–1000      |
+| `limit` | 20      | 1–50        |
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "bookmarks": [
+      { "_id": "...", "contractId": "...", "note": "Review this NDA before Friday", "createdAt": "..." }
+    ],
+    "meta": { "total": 3, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+---
+
+### DELETE — Remove Bookmark _(🔒 Protected)_
+
+```
+DELETE {{base_url}}/bookmarks/{{contract_id}}
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{ "success": true, "message": "Bookmark removed." }
+```
+
+---
+
+## 📋 15. Templates — `/api/v1/templates`
+
+> All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Create, update, and delete require **admin** or **manager** role.
+> Viewers can list, view, and clone templates.
+
+---
+
+### POST — Create Template _(🔒 Protected — Admin/Manager)_
+
+```
+POST {{base_url}}/templates
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "title": "Standard NDA Template",
+  "description": "A boilerplate NDA for general use with external vendors.",
+  "content": "This Non-Disclosure Agreement (\"Agreement\") is entered into between [Party A] and [Party B]. Both parties agree to maintain the confidentiality of all proprietary information shared during the term of this agreement.",
+  "type": "NDA",
+  "category": "Legal",
+  "tags": ["nda", "vendor", "standard"]
+}
+```
+
+Field rules:
+- `title` — required, 3–300 chars, no HTML tags or control chars
+- `description` — optional, max 1000 chars
+- `content` — required, 10–500,000 chars
+- `type` — optional, one of: `NDA`, `Vendor`, `Employment`, `SaaS`, `Other` (default: `Other`)
+- `category` — optional, max 100 chars (default: `General`)
+- `tags` — optional, array of up to 20 strings (each max 50 chars, auto-lowercased)
+
+**Success (201):**
+```json
+{
+  "success": true,
+  "message": "Template created.",
+  "data": {
+    "template": {
+      "_id": "65f1a2b3c4d5e6f7a8b9c0f1",
+      "title": "Standard NDA Template",
+      "type": "NDA",
+      "category": "Legal",
+      "createdAt": "2026-04-08T10:00:00.000Z"
+    }
+  }
+}
+```
+
+> Copy `data.template._id` → `template_id` env var.
+
+---
+
+### GET — List Templates _(🔒 Protected)_
+
+```
+GET {{base_url}}/templates
+Authorization: Bearer {{access_token}}
+```
+
+Returns both org-specific and global templates.
+
+**Optional query params:**
+
+| Param      | Default | Options                                        |
+|------------|---------|------------------------------------------------|
+| `page`     | 1       | 1–1000                                         |
+| `limit`    | 20      | 1–50                                           |
+| `type`     | _(all)_ | `NDA`, `Vendor`, `Employment`, `SaaS`, `Other` |
+| `category` | _(all)_ | any string, max 100 chars                      |
+| `search`   | _(none)_| search in title, max 100 chars                 |
+
+**Example:** `GET {{base_url}}/templates?type=NDA&category=Legal`
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "templates": [
+      { "_id": "...", "title": "Standard NDA Template", "type": "NDA", "category": "Legal", "usageCount": 5 }
+    ],
+    "meta": { "total": 8, "page": 1, "limit": 20, "totalPages": 1 }
+  }
+}
+```
+
+---
+
+### GET — Get Template _(🔒 Protected)_
+
+```
+GET {{base_url}}/templates/{{template_id}}
+Authorization: Bearer {{access_token}}
+```
+
+Returns full template details including content.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "template": {
+      "_id": "65f1a2b3c4d5e6f7a8b9c0f1",
+      "title": "Standard NDA Template",
+      "description": "A boilerplate NDA for general use with external vendors.",
+      "content": "This Non-Disclosure Agreement...",
+      "type": "NDA",
+      "category": "Legal",
+      "tags": ["nda", "vendor", "standard"],
+      "usageCount": 5,
+      "createdAt": "2026-04-08T10:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+### PATCH — Update Template _(🔒 Protected — Admin/Manager)_
+
+```
+PATCH {{base_url}}/templates/{{template_id}}
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "title": "Updated NDA Template", "description": "Revised NDA with stricter penalties." }
+```
+
+All fields are optional, but at least one must be provided. Same field rules as create.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Template updated.",
+  "data": { "template": { "_id": "...", "title": "Updated NDA Template", "description": "Revised NDA with stricter penalties." } }
+}
+```
+
+---
+
+### DELETE — Delete Template _(🔒 Protected — Admin/Manager)_
+
+```
+DELETE {{base_url}}/templates/{{template_id}}
+Authorization: Bearer {{access_token}}
+```
+
+Soft-deletes the template. It will no longer appear in listings.
+
+**Success (200):**
+```json
+{ "success": true, "message": "Template deleted." }
+```
+
+---
+
+### POST — Clone Template to Contract _(🔒 Protected)_
+
+```
+POST {{base_url}}/templates/{{template_id}}/clone
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "title": "My NDA from Template" }
+```
+
+- `title` — optional, overrides the template title (defaults to `"<template title> (from template)"`)
+- Creates a new contract using the template's content, type, and tags
+
+**Success (201):**
+```json
+{
+  "success": true,
+  "message": "Contract created from template.",
+  "data": {
+    "contract": {
+      "id": "65f1a2b3c4d5e6f7a8b9c0f5",
+      "title": "My NDA from Template",
+      "type": "NDA"
+    }
+  }
+}
+```
+
+---
+
+## 🔗 16. Sharing — `/api/v1/shares`
+
+> Create, list, and revoke require `Authorization: Bearer {{access_token}}` + org membership.
+> The public access endpoint does **NOT** require authentication.
+> Create and revoke require **admin** or **manager** role.
+
+---
+
+### POST — Create Share Link _(🔒 Protected — Admin/Manager)_
+
+```
+POST {{base_url}}/shares
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "contractId": "{{contract_id}}",
+  "permissions": "view_content",
+  "expiryHours": 72,
+  "password": "SecretLink@123",
+  "note": "Shared with external counsel for review"
+}
+```
+
+Field rules:
+- `contractId` — required, 24-char hex ObjectId
+- `permissions` — optional, one of: `view_metadata`, `view_content`, `view_analysis` (default: `view_metadata`)
+- `expiryHours` — optional, 1–720 hours (default: 72, max 30 days)
+- `password` — optional, 4–128 chars (password-protect the link)
+- `note` — optional, max 500 chars
+
+**Success (201):**
+```json
+{
+  "success": true,
+  "message": "Share link created.",
+  "data": {
+    "shareLink": {
+      "id": "65f1a2b3c4d5e6f7a8b9c0f8",
+      "token": "a1b2c3d4e5f6...(64 hex chars)",
+      "permissions": "view_content",
+      "expiresAt": "2026-04-11T10:00:00.000Z",
+      "hasPassword": true,
+      "note": "Shared with external counsel for review"
+    }
+  }
+}
+```
+
+> Copy `data.shareLink.id` → `share_link_id` and `data.shareLink.token` → `share_token` env vars.
+
+---
+
+### GET — List Share Links for a Contract _(🔒 Protected)_
+
+```
+GET {{base_url}}/shares/contract/{{contract_id}}
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "shareLinks": [
+      { "id": "...", "permissions": "view_content", "expiresAt": "...", "hasPassword": true, "createdBy": "...", "createdAt": "..." }
+    ]
+  }
+}
+```
+
+---
+
+### DELETE — Revoke Share Link _(🔒 Protected — Admin/Manager)_
+
+```
+DELETE {{base_url}}/shares/{{share_link_id}}
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{ "success": true, "message": "Share link revoked." }
+```
+
+---
+
+### POST — Access Shared Contract _(🌐 Public — No Auth)_
+
+```
+POST {{base_url}}/shares/access
+Content-Type: application/json
+```
+
+```json
+{ "token": "{{share_token}}", "password": "SecretLink@123" }
+```
+
+Field rules:
+- `token` — required, 64-char hex string
+- `password` — optional, required if the link was password-protected
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "contract": {
+      "title": "My NDA",
+      "type": "NDA",
+      "content": "...",
+      "sharedAt": "2026-04-08T10:00:00.000Z",
+      "permissions": "view_content"
+    }
+  }
+}
+```
+
+---
+
+## 📦 17. Exports — `/api/v1/exports`
+
+> All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Returns JSON data with Content-Disposition header for download.
+
+---
+
+### GET — Export Contracts List _(🔒 Protected)_
+
+```
+GET {{base_url}}/exports/contracts
+Authorization: Bearer {{access_token}}
+```
+
+Exports all contracts for the org as a JSON download.
+
+**Optional query params:** Same as List Contracts (type, search, sortBy, order).
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "contracts": [
+      { "id": "...", "title": "My NDA", "type": "NDA", "status": "active", "riskScore": 7.2, "createdAt": "..." }
+    ],
+    "exportedAt": "2026-04-08T10:00:00.000Z",
+    "totalCount": 48
+  }
+}
+```
+
+---
+
+### GET — Export Single Contract Report _(🔒 Protected)_
+
+```
+GET {{base_url}}/exports/contracts/{{contract_id}}/report
+Authorization: Bearer {{access_token}}
+```
+
+Exports a full contract report including content, analysis, and audit trail.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "report": {
+      "contract": { "id": "...", "title": "My NDA", "content": "...", "type": "NDA" },
+      "analysis": { "riskScore": 7.2, "summary": "...", "flags": [...] },
+      "auditLog": [ { "action": "contract.created", "timestamp": "..." } ],
+      "exportedAt": "2026-04-08T10:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+### GET — Export Analyses Summary _(🔒 Protected)_
+
+```
+GET {{base_url}}/exports/analyses
+Authorization: Bearer {{access_token}}
+```
+
+Exports all analyses for the org as a JSON download.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "analyses": [
+      { "analysisId": "...", "contractId": "...", "contractTitle": "My NDA", "riskScore": 7.2, "status": "completed", "completedAt": "..." }
+    ],
+    "exportedAt": "2026-04-08T10:00:00.000Z",
+    "totalCount": 31
+  }
+}
+```
+
+---
+
+## ⚡ 18. Bulk Operations — `/api/v1/bulk`
+
+> All routes require `Authorization: Bearer {{access_token}}` + org membership + **admin/manager** role.
+> All operations accept an array of contract IDs (max 100, except delete which allows max 50).
+
+---
+
+### POST — Bulk Add Tags _(🔒 Protected — Admin/Manager)_
+
+```
+POST {{base_url}}/bulk/add-tags
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "contractIds": ["65f1a2b3c4d5e6f7a8b9c0d4", "65f1a2b3c4d5e6f7a8b9c0d5"],
+  "tags": ["urgent", "q2-2026"]
+}
+```
+
+Field rules:
+- `contractIds` — required, array of 1–100 hex ObjectIds
+- `tags` — required, array of 1–20 strings (each max 50 chars, auto-lowercased)
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Tags added to 2 contracts.",
+  "data": { "modifiedCount": 2 }
+}
+```
+
+---
+
+### POST — Bulk Remove Tags _(🔒 Protected — Admin/Manager)_
+
+```
+POST {{base_url}}/bulk/remove-tags
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "contractIds": ["65f1a2b3c4d5e6f7a8b9c0d4", "65f1a2b3c4d5e6f7a8b9c0d5"],
+  "tags": ["obsolete"]
+}
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Tags removed from 2 contracts.",
+  "data": { "modifiedCount": 2 }
+}
+```
+
+---
+
+### POST — Bulk Delete Contracts _(🔒 Protected — Admin/Manager)_
+
+```
+POST {{base_url}}/bulk/delete
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "contractIds": ["65f1a2b3c4d5e6f7a8b9c0d4", "65f1a2b3c4d5e6f7a8b9c0d5"]
+}
+```
+
+- Max 50 contract IDs per request (stricter limit for destructive operations)
+- Performs soft-delete
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "2 contracts deleted.",
+  "data": { "deletedCount": 2 }
+}
+```
+
+---
+
+### POST — Bulk Update Type _(🔒 Protected — Admin/Manager)_
+
+```
+POST {{base_url}}/bulk/update-type
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "contractIds": ["65f1a2b3c4d5e6f7a8b9c0d4", "65f1a2b3c4d5e6f7a8b9c0d5"],
+  "type": "Vendor"
+}
+```
+
+- `type` — required, one of: `NDA`, `Vendor`, `Employment`, `SaaS`, `Other`
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Type updated for 2 contracts.",
+  "data": { "modifiedCount": 2 }
+}
+```
+
+---
+
+## ⚙️ 19. Preferences — `/api/v1/preferences`
+
+> All routes require `Authorization: Bearer {{access_token}}`.
+> Preferences are user-scoped (no org required) — each user has their own settings.
+
+---
+
+### GET — Get Preferences _(🔒 Protected)_
+
+```
+GET {{base_url}}/preferences
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "preferences": {
+      "notifications": {
+        "emailOnAnalysisComplete": true,
+        "emailOnContractExpiring": true,
+        "emailOnCommentAdded": false,
+        "emailOnInvitation": true,
+        "pushOnAnalysisComplete": true,
+        "pushOnContractExpiring": true,
+        "pushOnCommentAdded": false
+      },
+      "display": {
+        "contractsPerPage": 10,
+        "defaultSortBy": "createdAt",
+        "defaultSortOrder": "desc",
+        "showRiskBadges": true
+      },
+      "defaults": {
+        "contractType": "Other",
+        "alertDays": [30, 7]
+      },
+      "timezone": "Asia/Kolkata"
+    }
+  }
+}
+```
+
+---
+
+### PUT — Update Preferences _(🔒 Protected)_
+
+```
+PUT {{base_url}}/preferences
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+Send only the sections/fields you want to change. At least one field required.
+
+**Example — update notifications only:**
+```json
+{
+  "notifications": {
+    "emailOnAnalysisComplete": false,
+    "emailOnCommentAdded": true
+  }
+}
+```
+
+**Example — update display settings:**
+```json
+{
+  "display": {
+    "contractsPerPage": 25,
+    "defaultSortBy": "riskScore",
+    "defaultSortOrder": "desc",
+    "showRiskBadges": true
+  }
+}
+```
+
+**Example — update defaults and timezone:**
+```json
+{
+  "defaults": {
+    "contractType": "NDA",
+    "alertDays": [90, 30, 7, 1]
+  },
+  "timezone": "America/New_York"
+}
+```
+
+Field rules:
+- `notifications` — optional object with boolean flags
+- `display.contractsPerPage` — 5–50
+- `display.defaultSortBy` — one of: `createdAt`, `title`, `type`, `expiryDate`, `riskScore`
+- `display.defaultSortOrder` — `asc` or `desc`
+- `defaults.contractType` — one of: `NDA`, `Vendor`, `Employment`, `SaaS`, `Other`
+- `defaults.alertDays` — array of up to 10 integers, each 1–365
+- `timezone` — free text, max 50 chars (e.g. `Asia/Kolkata`, `UTC`)
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Preferences updated.",
+  "data": { "preferences": { ... } }
+}
+```
+
+---
+
+### DELETE — Reset Preferences to Defaults _(🔒 Protected)_
+
+```
+DELETE {{base_url}}/preferences
+Authorization: Bearer {{access_token}}
+```
+
+Resets all preferences back to system defaults.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Preferences reset to defaults.",
+  "data": { "preferences": { ... } }
+}
+```
+
+---
+
+## 📈 20. Reports — `/api/v1/reports`
+
+> All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Reports are read-only aggregation endpoints — no data mutation.
+
+---
+
+### GET — Compliance Report _(🔒 Protected)_
+
+```
+GET {{base_url}}/reports/compliance
+Authorization: Bearer {{access_token}}
+```
+
+Returns a compliance summary: analysis coverage, expired contracts, and risk breakdown.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "report": {
+      "totalContracts": 48,
+      "analyzedContracts": 31,
+      "analysisCoverage": "64.6%",
+      "expiredContracts": 5,
+      "contractsWithoutExpiry": 12,
+      "highRiskContracts": 8,
+      "averageRiskScore": 5.8
+    }
+  }
+}
+```
+
+---
+
+### GET — Risk Trend Report _(🔒 Protected)_
+
+```
+GET {{base_url}}/reports/risk-trend
+Authorization: Bearer {{access_token}}
+```
+
+Returns risk score trends over the last 6 months.
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "report": {
+      "months": [
+        { "month": "2025-11", "averageRiskScore": 6.1, "totalAnalyses": 5 },
+        { "month": "2025-12", "averageRiskScore": 5.8, "totalAnalyses": 7 },
+        { "month": "2026-01", "averageRiskScore": 5.5, "totalAnalyses": 6 },
+        { "month": "2026-02", "averageRiskScore": 5.9, "totalAnalyses": 4 },
+        { "month": "2026-03", "averageRiskScore": 5.2, "totalAnalyses": 8 },
+        { "month": "2026-04", "averageRiskScore": 4.8, "totalAnalyses": 3 }
+      ]
+    }
+  }
+}
+```
+
+---
+
+### GET — Activity Report _(🔒 Protected)_
+
+```
+GET {{base_url}}/reports/activity
+Authorization: Bearer {{access_token}}
+```
+
+Returns org activity: total actions, active users, and daily action counts.
+
+**Optional query params:**
+
+| Param  | Default | Description                      |
+|--------|---------|----------------------------------|
+| `days` | 30      | Number of days to look back      |
+
+**Example:** `GET {{base_url}}/reports/activity?days=7`
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "report": {
+      "totalActions": 245,
+      "activeUsers": 8,
+      "dailyCounts": [
+        { "date": "2026-04-08", "count": 12 },
+        { "date": "2026-04-07", "count": 18 },
+        { "date": "2026-04-06", "count": 9 }
+      ],
+      "topActions": [
+        { "action": "contract.created", "count": 45 },
+        { "action": "analysis.requested", "count": 31 },
+        { "action": "comment.created", "count": 28 }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## 🌍 21. Public APIs (from public-apis/public-apis)
 
 > These are free public APIs relevant to LexAI. All require `Authorization: Bearer {{access_token}}` on the LexAI enrichment proxy, or can be called directly using the URLs below.
 > No calendar APIs are included.
@@ -1364,7 +2609,7 @@ Key: none required for community tier
 
 ---
 
-#### HaveIBeenPwned — Email Breach Check *(already in Section 8)*
+#### HaveIBeenPwned — Email Breach Check *(already in Section 10)*
 
 Already integrated at `GET {{base_url}}/enrichment/email/breaches?email=...`
 Requires `HIBP_API_KEY` in `.env`.
@@ -1479,7 +2724,7 @@ GET https://apilayer.net/api/check?access_key={{mailboxlayer_key}}&email={{email
 
 #### ExchangeRate-API — Free Currency Conversion *(no key required)*
 
-Free currency conversion with 1500+ req/month on free plan. Alternative to Frankfurter (already in Section 8).
+Free currency conversion with 1500+ req/month on free plan. Alternative to Frankfurter (already in Section 10).
 
 ```
 GET https://open.er-api.com/v6/latest/{{base_currency}}
@@ -1508,7 +2753,7 @@ GET https://open.er-api.com/v6/latest/{{base_currency}}
 
 ---
 
-#### Frankfurter — ECB Exchange Rates *(already in Section 8)*
+#### Frankfurter — ECB Exchange Rates *(already in Section 10)*
 
 Already integrated at `GET {{base_url}}/enrichment/currency/rate` and `/rates`. No key needed.
 
@@ -1723,3 +2968,32 @@ These are the only env vars relevant to this project. Set them in your `.env` fi
 | `HIBP_API_KEY`              | No       | HaveIBeenPwned API key for breach checks             |
 | `ADMIN_EMAIL`               | No       | Bootstrap admin email (seed script only)             |
 | `ADMIN_PASSWORD`            | No       | Bootstrap admin password (seed script only)          |
+
+---
+
+## 📊 API Summary
+
+| #  | Module           | Base Path                                  | Endpoints | Auth Required |
+|----|------------------|--------------------------------------------|-----------|---------------|
+| 1  | Health Check     | `/health`                                  | 1         | ❌            |
+| 2  | Auth             | `/api/v1/auth`                             | 11        | Mixed         |
+| 3  | Users            | `/api/v1/users`                            | 3         | ✅            |
+| 4  | Organizations    | `/api/v1/orgs`                             | 6         | Mixed         |
+| 5  | Contracts        | `/api/v1/contracts`                        | 8         | ✅            |
+| 6  | Workflow Status  | `/api/v1/contracts/:id/status`             | 3         | ✅            |
+| 7  | Comments         | `/api/v1/contracts/:contractId/comments`   | 4         | ✅            |
+| 8  | Analyses         | `/api/v1/analyses`                         | 3         | ✅            |
+| 9  | Notifications    | `/api/v1/notifications`                    | 6         | ✅            |
+| 10 | Enrichment       | `/api/v1/enrichment`                       | 10        | ✅            |
+| 11 | Admin            | `/api/v1/admin`                            | 6         | ✅ Admin      |
+| 12 | Dashboard        | `/api/v1/dashboard`                        | 4         | ✅            |
+| 13 | Tags             | `/api/v1/tags`                             | 3         | ✅            |
+| 14 | Bookmarks        | `/api/v1/bookmarks`                        | 3         | ✅            |
+| 15 | Templates        | `/api/v1/templates`                        | 6         | ✅            |
+| 16 | Sharing          | `/api/v1/shares`                           | 4         | Mixed         |
+| 17 | Exports          | `/api/v1/exports`                          | 3         | ✅            |
+| 18 | Bulk Operations  | `/api/v1/bulk`                             | 4         | ✅ Admin/Mgr  |
+| 19 | Preferences      | `/api/v1/preferences`                      | 3         | ✅            |
+| 20 | Reports          | `/api/v1/reports`                          | 3         | ✅            |
+| 21 | Public APIs      | External URLs                              | 10        | Varies        |
+|    | **Total**        |                                            | **~104**  |               |

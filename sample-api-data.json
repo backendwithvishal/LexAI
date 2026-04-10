@@ -30,6 +30,11 @@
     "adminLogin": {
       "email": "admin@lexai.io",
       "password": "Admin112233"
+    },
+    "revokeSession": {
+      "params": {
+        "jti": "session-jti-here"
+      }
     }
   },
   "users": {
@@ -96,6 +101,24 @@
     "compareVersions": {
       "versionA": 1,
       "versionB": 2
+    },
+    "updateStatus": {
+      "status": "review",
+      "note": "Sent for legal review."
+    }
+  },
+  "comments": {
+    "create": {
+      "content": "Please review clause 4 regarding liability limits."
+    },
+    "update": {
+      "content": "Updated: clause 4 has been revised and looks good now."
+    },
+    "list": {
+      "queryParams": {
+        "page": 1,
+        "limit": 20
+      }
     }
   },
   "analyses": {
@@ -103,6 +126,126 @@
       "contractId": "contract-id-here",
       "version": 1
     }
+  },
+  "dashboard": {
+    "stats": {},
+    "riskDistribution": {},
+    "expiryTimeline": {},
+    "recentActivity": {}
+  },
+  "tags": {
+    "rename": {
+      "oldTag": "nda",
+      "newTag": "non-disclosure"
+    }
+  },
+  "bookmarks": {
+    "create": {
+      "contractId": "contract-id-here",
+      "note": "Review before Q2 renewal."
+    },
+    "list": {
+      "queryParams": {
+        "page": 1,
+        "limit": 20
+      }
+    }
+  },
+  "templates": {
+    "create": {
+      "title": "Standard NDA Template",
+      "description": "A reusable Non-Disclosure Agreement template for vendor onboarding.",
+      "content": "This Non-Disclosure Agreement is entered into between [Party A] and [Party B]...",
+      "type": "NDA",
+      "category": "Legal",
+      "tags": ["nda", "template", "vendor"]
+    },
+    "update": {
+      "title": "Updated NDA Template",
+      "description": "Revised NDA template with updated confidentiality clauses.",
+      "tags": ["nda", "template", "updated"]
+    },
+    "list": {
+      "queryParams": {
+        "page": 1,
+        "limit": 20,
+        "type": "NDA",
+        "category": "Legal",
+        "search": "nda"
+      }
+    }
+  },
+  "shares": {
+    "create": {
+      "contractId": "contract-id-here",
+      "permissions": "view_content",
+      "expiryHours": 72,
+      "password": "share123",
+      "note": "Shared with external counsel for review."
+    },
+    "access": {
+      "token": "64-character-hex-share-token-here",
+      "password": "share123"
+    }
+  },
+  "exports": {
+    "contracts": {
+      "queryParams": {}
+    },
+    "contractReport": {
+      "params": {
+        "id": "contract-id-here"
+      }
+    },
+    "analyses": {
+      "queryParams": {}
+    }
+  },
+  "bulk": {
+    "addTags": {
+      "contractIds": ["contract-id-1", "contract-id-2"],
+      "tags": ["reviewed", "2026"]
+    },
+    "removeTags": {
+      "contractIds": ["contract-id-1", "contract-id-2"],
+      "tags": ["draft"]
+    },
+    "delete": {
+      "contractIds": ["contract-id-1", "contract-id-2"]
+    },
+    "updateType": {
+      "contractIds": ["contract-id-1", "contract-id-2"],
+      "type": "Vendor"
+    }
+  },
+  "preferences": {
+    "update": {
+      "notifications": {
+        "emailOnAnalysisComplete": true,
+        "emailOnContractExpiring": true,
+        "emailOnCommentAdded": false,
+        "emailOnInvitation": true,
+        "pushOnAnalysisComplete": true,
+        "pushOnContractExpiring": true,
+        "pushOnCommentAdded": true
+      },
+      "display": {
+        "contractsPerPage": 20,
+        "defaultSortBy": "createdAt",
+        "defaultSortOrder": "desc",
+        "showRiskBadges": true
+      },
+      "defaults": {
+        "contractType": "NDA",
+        "alertDays": [30, 7]
+      },
+      "timezone": "Asia/Kolkata"
+    }
+  },
+  "reports": {
+    "compliance": {},
+    "riskTrend": {},
+    "activity": {}
   },
   "notifications": {
     "list": {
@@ -118,113 +261,6 @@
         "limit": 20,
         "read": false,
         "type": "order_created"
-      }
-    }
-  },
-  "products": {
-    "create": {
-      "name": "Premium Legal Toolkit",
-      "description": "Comprehensive toolkit for legal professionals including contract templates, AI-powered analysis tools, and compliance checklists.",
-      "price": 299.99,
-      "category": "legal-tools",
-      "stock": 100,
-      "images": ["https://example.com/images/toolkit-1.jpg"],
-      "tags": ["legal", "toolkit", "professional"]
-    },
-    "update": {
-      "price": 249.99,
-      "stock": 150,
-      "tags": ["legal", "toolkit", "premium", "updated"]
-    },
-    "list": {
-      "queryParams": {
-        "page": 1,
-        "limit": 10,
-        "category": "legal-tools",
-        "sortBy": "price",
-        "sortOrder": "asc"
-      }
-    },
-    "search": {
-      "queryParams": {
-        "search": "legal toolkit",
-        "page": 1,
-        "limit": 20
-      }
-    }
-  },
-  "orders": {
-    "create": {
-      "items": [
-        { "productId": "product-id-here", "quantity": 2 }
-      ],
-      "shippingAddress": {
-        "street": "123 Legal Avenue",
-        "city": "Mumbai",
-        "state": "Maharashtra",
-        "zipCode": "400001",
-        "country": "India"
-      },
-      "paymentMethod": "credit_card"
-    },
-    "updateStatus": {
-      "status": "confirmed"
-    },
-    "cancel": {
-      "reason": "Changed my mind"
-    },
-    "list": {
-      "queryParams": {
-        "page": 1,
-        "limit": 20,
-        "status": "pending",
-        "sortBy": "createdAt",
-        "sortOrder": "desc"
-      }
-    }
-  },
-  "reviews": {
-    "create": {
-      "productId": "product-id-here",
-      "rating": 5,
-      "title": "Excellent toolkit!",
-      "comment": "This legal toolkit has everything I need. The contract templates are comprehensive and the AI analysis integration is seamless."
-    },
-    "list": {
-      "queryParams": {
-        "page": 1,
-        "limit": 20,
-        "sortBy": "createdAt",
-        "sortOrder": "desc"
-      }
-    }
-  },
-  "analytics": {
-    "sales": {
-      "queryParams": {
-        "period": "30d"
-      }
-    },
-    "products": {
-      "queryParams": {
-        "limit": 10
-      }
-    },
-    "users": {
-      "queryParams": {
-        "period": "30d"
-      }
-    },
-    "revenue": {
-      "queryParams": {
-        "period": "90d",
-        "groupBy": "week"
-      }
-    },
-    "topProducts": {
-      "queryParams": {
-        "limit": 10,
-        "period": "30d"
       }
     }
   },
@@ -264,6 +300,21 @@
       "queryParams": {
         "base": "USD",
         "targets": "EUR,GBP,JPY"
+      }
+    },
+    "countryInfo": {
+      "params": {
+        "name": "India"
+      }
+    },
+    "worldTime": {
+      "params": {
+        "timezone": "Asia/Kolkata"
+      }
+    },
+    "ipInfo": {
+      "params": {
+        "ip": "8.8.8.8"
       }
     }
   },
@@ -336,7 +387,8 @@
         "content": "Too short.",
         "tags": []
       },
-      "contractTypes": ["NDA", "Vendor", "Employment", "SaaS", "Other"]
+      "contractTypes": ["NDA", "Vendor", "Employment", "SaaS", "Other"],
+      "contractStatuses": ["draft", "review", "approved", "signed", "active", "expired", "terminated"]
     }
   }
 }
