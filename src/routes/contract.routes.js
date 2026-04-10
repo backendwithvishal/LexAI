@@ -16,6 +16,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import * as contractController from '../controllers/contract.controller.js';
 import * as diffController from '../controllers/diff.controller.js';
+import * as statusController from '../controllers/status.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/rbac.middleware.js';
 import { requireOrg } from '../middleware/orgResolver.middleware.js';
@@ -24,8 +25,10 @@ import { rateLimiter } from '../middleware/rateLimiter.middleware.js';
 import { sendError } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 import * as contractValidator from '../validators/contract.validator.js';
+import * as statusValidator from '../validators/status.validator.js';
 import { asyncWrapper } from '../utils/asyncWrapper.js';
 import env from '../config/env.js';
+import commentRoutes from './comment.routes.js';
 
 const router = Router();
 
@@ -88,5 +91,13 @@ router.post('/:id/compare', authenticate, requireOrg, rateLimiter('analysis'), v
 
 // ─── Audit trail ──────────────────────────────────────────────────────────────
 router.get('/:id/audit', authenticate, requireOrg, asyncWrapper(contractController.getContractAudit));
+
+// ─── Workflow Status ──────────────────────────────────────────────────────────
+router.get('/:id/status',         authenticate, requireOrg, asyncWrapper(statusController.getContractStatus));
+router.patch('/:id/status',       authenticate, requireOrg, authorize('admin', 'manager'), validate(statusValidator.updateStatus), asyncWrapper(statusController.updateContractStatus));
+router.get('/:id/status/history', authenticate, requireOrg, asyncWrapper(statusController.getStatusHistory));
+
+// ─── Comments (nested sub-router) ────────────────────────────────────────────
+router.use('/:contractId/comments', commentRoutes);
 
 export default router;

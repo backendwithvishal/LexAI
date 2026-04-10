@@ -107,6 +107,13 @@ const contractSchema = new mongoose.Schema(
             currency: String,
         },
 
+        // ─── Workflow Status ─────────────────────────────────────
+        status: {
+            type: String,
+            enum: ['draft', 'review', 'approved', 'signed', 'active', 'expired', 'terminated'],
+            default: 'draft',
+        },
+
         // ─── Soft Delete ────────────────────────────────────────
         isDeleted: { type: Boolean, default: false },
         deletedAt: Date,
