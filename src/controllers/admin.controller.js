@@ -10,9 +10,12 @@ import User from '../models/User.model.js';
 import Organization from '../models/Organization.model.js';
 import Contract from '../models/Contract.model.js';
 import Analysis from '../models/Analysis.model.js';
+import Template from '../models/Template.model.js';
+import Comment from '../models/Comment.model.js';
 import { getChannel } from '../config/rabbitmq.js';
 import { QUEUES } from '../constants/queues.js';
 import * as auditService from '../services/audit.service.js';
+import { revokeAllRefreshTokens } from '../services/auth.service.js';
 import { sendSuccess, sendError, buildPaginationMeta } from '../utils/apiResponse.js';
 
 /** GET /admin/stats — platform-wide usage statistics */
@@ -171,4 +174,157 @@ export async function getAuditLogs(req, res) {
     sendSuccess(res, {
         data: { logs: result.logs, meta: buildPaginationMeta(result.total, result.page, result.limit) },
     });
+}
+
+/** DELETE /admin/contracts/:id — permanently delete any contract (platform-wide, no org scope) */
+export async function deleteContract(req, res) {
+    const { id } = req.params;
+
+    const contract = await Contract.findById(id);
+    if (!contract) {
+        return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'Contract not found.' });
+    }
+
+    await Contract.findByIdAndDelete(id);
+
+    // Decrement the owning org's cached contract count
+    await Organization.findByIdAndUpdate(contract.orgId, { $inc: { contractCount: -1 } });
+
+    await auditService.log({
+        userId: req.user.userId,
+        action: 'admin.contract.deleted',
+        resourceType: 'Contract',
+        resourceId: id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+    });
+
+    sendSuccess(res, { message: 'Contract permanently deleted.' });
+}
+
+/** DELETE /admin/organizations/:id — delete an org and cascade-clean its data */
+export async function deleteOrganization(req, res) {
+    const { id } = req.params;
+
+    const org = await Organization.findById(id);
+    if (!org) {
+        return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'Organization not found.' });
+    }
+
+    // Cascade: soft-delete contracts, hard-delete analyses, clear user memberships — run in parallel
+    await Promise.all([
+        Contract.updateMany({ orgId: id }, { isDeleted: true, deletedAt: new Date() }),
+        Analysis.deleteMany({ orgId: id }),
+        User.updateMany({ organization: id }, { $unset: { organization: '' }, $set: { role: 'viewer' } }),
+    ]);
+
+    // Delete the org itself last (after cascade is complete)
+    await Organization.findByIdAndDelete(id);
+
+    await auditService.log({
+        userId: req.user.userId,
+        action: 'admin.organization.deleted',
+        resourceType: 'Organization',
+        resourceId: id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+    });
+
+    sendSuccess(res, { message: 'Organization deleted.' });
+}
+
+/** DELETE /admin/analyses/:id — permanently delete any analysis (platform-wide, no org scope) */
+export async function deleteAnalysis(req, res) {
+    const { id } = req.params;
+
+    const analysis = await Analysis.findById(id);
+    if (!analysis) {
+        return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'Analysis not found.' });
+    }
+
+    await Analysis.findByIdAndDelete(id);
+
+    await auditService.log({
+        userId: req.user.userId,
+        action: 'admin.analysis.deleted',
+        resourceType: 'Analysis',
+        resourceId: id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+    });
+
+    sendSuccess(res, { message: 'Analysis permanently deleted.' });
+}
+
+/** DELETE /admin/templates/:id — soft-delete any template including global ones */
+export async function deleteTemplate(req, res) {
+    const { id } = req.params;
+
+    // Only match active templates — treat already-inactive as not found
+    const template = await Template.findOne({ _id: id, isActive: true });
+    if (!template) {
+        return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'Template not found.' });
+    }
+
+    await Template.findByIdAndUpdate(id, { isActive: false });
+
+    await auditService.log({
+        userId: req.user.userId,
+        action: 'admin.template.deleted',
+        resourceType: 'Template',
+        resourceId: id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+    });
+
+    sendSuccess(res, { message: 'Template deleted.' });
+}
+
+/** DELETE /admin/comments/:id — hard-delete any comment platform-wide (bypasses org scope) */
+export async function deleteComment(req, res) {
+    const { id } = req.params;
+
+    const comment = await Comment.findOne({ _id: id, isDeleted: false });
+    if (!comment) {
+        return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'Comment not found.' });
+    }
+
+    comment.isDeleted = true;
+    comment.deletedAt = new Date();
+    await comment.save();
+
+    await auditService.log({
+        userId: req.user.userId,
+        action: 'admin.comment.deleted',
+        resourceType: 'Comment',
+        resourceId: id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+    });
+
+    sendSuccess(res, { message: 'Comment deleted.' });
+}
+
+/** DELETE /admin/users/:id/sessions — force-revoke all active sessions for a user */
+export async function revokeUserSessions(req, res) {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) {
+        return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'User not found.' });
+    }
+
+    // Reuse the existing auth service — revokes all refresh token JTIs from Redis
+    await revokeAllRefreshTokens(id);
+
+    await auditService.log({
+        userId: req.user.userId,
+        action: 'admin.user.sessions.revoked',
+        resourceType: 'User',
+        resourceId: id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+    });
+
+    sendSuccess(res, { message: 'All sessions revoked for user.' });
 }

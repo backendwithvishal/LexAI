@@ -1496,6 +1496,136 @@ Soft-deactivates the user (sets `isActive: false`). Cannot deactivate your own a
 
 ---
 
+### DELETE — Force-Revoke All Sessions for a User _(🔒 Admin only)_
+
+```
+DELETE {{base_url}}/admin/users/{{user_id}}/sessions
+Authorization: Bearer {{admin_token}}
+```
+
+Immediately invalidates all active refresh token sessions for the target user across all devices. Use this when an account is compromised or needs to be force-logged out.
+
+**Success (200):**
+```json
+{ "success": true, "message": "All sessions revoked for user." }
+```
+
+**Error — User not found (404):**
+```json
+{ "success": false, "error": { "code": "NOT_FOUND", "message": "User not found." } }
+```
+
+---
+
+### DELETE — Force-Delete Contract _(🔒 Admin only)_
+
+```
+DELETE {{base_url}}/admin/contracts/{{contract_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+Permanently hard-deletes any contract platform-wide, bypassing org ownership checks. Also decrements the owning org's `contractCount`. Use for removing illegal, abusive, or test data.
+
+**Success (200):**
+```json
+{ "success": true, "message": "Contract permanently deleted." }
+```
+
+**Error — Contract not found (404):**
+```json
+{ "success": false, "error": { "code": "NOT_FOUND", "message": "Contract not found." } }
+```
+
+---
+
+### DELETE — Delete Organization _(🔒 Admin only)_
+
+```
+DELETE {{base_url}}/admin/organizations/{{org_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+Deletes an organization and cascades cleanup in parallel:
+- Soft-deletes all contracts belonging to the org (`isDeleted: true`, `deletedAt` set)
+- Hard-deletes all analyses belonging to the org
+- Clears `organization` field and resets `role` to `viewer` on all member users
+- Hard-deletes the organization document itself
+
+**Success (200):**
+```json
+{ "success": true, "message": "Organization deleted." }
+```
+
+**Error — Org not found (404):**
+```json
+{ "success": false, "error": { "code": "NOT_FOUND", "message": "Organization not found." } }
+```
+
+---
+
+### DELETE — Force-Delete Analysis _(🔒 Admin only)_
+
+```
+DELETE {{base_url}}/admin/analyses/{{analysis_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+Permanently hard-deletes any analysis record platform-wide, bypassing org ownership checks. Use for removing corrupted, failed, or duplicate analysis documents.
+
+**Success (200):**
+```json
+{ "success": true, "message": "Analysis permanently deleted." }
+```
+
+**Error — Analysis not found (404):**
+```json
+{ "success": false, "error": { "code": "NOT_FOUND", "message": "Analysis not found." } }
+```
+
+---
+
+### DELETE — Delete Template _(🔒 Admin only)_
+
+```
+DELETE {{base_url}}/admin/templates/{{template_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+Soft-deletes any template including global (platform-wide) ones by setting `isActive: false`. Org-level users cannot delete global templates — only platform admins can. Already-inactive templates return 404.
+
+**Success (200):**
+```json
+{ "success": true, "message": "Template deleted." }
+```
+
+**Error — Template not found or already inactive (404):**
+```json
+{ "success": false, "error": { "code": "NOT_FOUND", "message": "Template not found." } }
+```
+
+---
+
+### DELETE — Force-Delete Comment _(🔒 Admin only)_
+
+```
+DELETE {{base_url}}/admin/comments/{{comment_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+Soft-deletes any comment platform-wide, bypassing org ownership and authorship checks. Use for removing abusive or policy-violating content across any org.
+
+**Success (200):**
+```json
+{ "success": true, "message": "Comment deleted." }
+```
+
+**Error — Comment not found (404):**
+```json
+{ "success": false, "error": { "code": "NOT_FOUND", "message": "Comment not found." } }
+```
+
+---
+
 ### GET — Global Audit Logs _(🔒 Admin only)_
 
 ```
