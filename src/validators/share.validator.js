@@ -18,12 +18,3 @@ export const createShareLink = Joi.object({
     note: Joi.string().trim().max(500).optional(),
 });
 
-/** POST /shares/access — public access via token */
-export const accessShareLink = Joi.object({
-    token: Joi.string().hex().length(64).required()
-        .messages({
-            'any.required': 'Share token is required.',
-            'string.hex': 'Invalid share token format.',
-        }),
-    password: Joi.string().max(128).optional(),
-});

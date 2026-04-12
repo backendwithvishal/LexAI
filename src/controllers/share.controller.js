@@ -2,7 +2,6 @@
  * Share Controller
  *
  * Thin HTTP layer for contract sharing.
- * The public access endpoint does NOT require authentication.
  */
 
 import * as shareService from '../services/share.service.js';
@@ -60,8 +59,3 @@ export async function revokeShareLink(req, res) {
     sendSuccess(res, { message: 'Share link revoked.' });
 }
 
-/** POST /shares/access — public endpoint: access a shared contract via token */
-export async function accessSharedContract(req, res) {
-    const data = await shareService.accessSharedContract(req.body.token, req.body.password);
-    sendSuccess(res, { data: { contract: data } });
-}

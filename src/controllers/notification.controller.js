@@ -35,8 +35,7 @@ export async function listNotifications(req, res) {
         Notification.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(parseInt(limit))
-            .lean(),
+            .limit(parseInt(limit)),
         Notification.countDocuments(filter),
     ]);
 
@@ -123,8 +122,7 @@ export async function getUserNotifications(req, res) {
         Notification.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(parseInt(limit))
-            .lean(),
+            .limit(parseInt(limit)),
         Notification.countDocuments(filter),
     ]);
 

@@ -7,9 +7,6 @@
  *   POST   /                         — Create a share link
  *   GET    /contract/:contractId     — List share links for a contract
  *   DELETE /:id                      — Revoke a share link
- *
- * Public endpoint (no auth):
- *   POST   /access                   — Access shared contract via token
  */
 
 import { Router } from 'express';
@@ -22,10 +19,6 @@ import * as shareValidator from '../validators/share.validator.js';
 import { asyncWrapper } from '../utils/asyncWrapper.js';
 
 const router = Router();
-
-// ─── Public endpoint — no auth required ──────────────────────────────────────
-// This MUST be declared before the authenticate middleware
-router.post('/access', validate(shareValidator.accessShareLink), asyncWrapper(shareController.accessSharedContract));
 
 // ─── Authenticated endpoints ─────────────────────────────────────────────────
 router.use(authenticate, requireOrg);

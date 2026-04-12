@@ -28,7 +28,6 @@ Create a Postman **Environment** with these variables:
 | `comment_id`       | *(from POST /comments)*        | MongoDB ObjectId of a comment      |
 | `template_id`      | *(from POST /templates)*       | MongoDB ObjectId of a template     |
 | `share_link_id`    | *(from POST /shares)*          | MongoDB ObjectId of a share link   |
-| `share_token`      | *(from share link creation)*   | 64-char hex token for public access|
 | `bookmark_contract_id` | *(from POST /bookmarks)*   | Contract ID of a bookmarked item   |
 
 > 🔒 **Protected routes** require: `Authorization: Bearer {{access_token}}`
@@ -2184,7 +2183,7 @@ Field rules:
 }
 ```
 
-> Copy `data.shareLink.id` → `share_link_id` and `data.shareLink.token` → `share_token` env vars.
+> Copy `data.shareLink.id` → `share_link_id` env var.
 
 ---
 
@@ -2219,39 +2218,6 @@ Authorization: Bearer {{access_token}}
 **Success (200):**
 ```json
 { "success": true, "message": "Share link revoked." }
-```
-
----
-
-### POST — Access Shared Contract _(🌐 Public — No Auth)_
-
-```
-POST {{base_url}}/shares/access
-Content-Type: application/json
-```
-
-```json
-{ "token": "{{share_token}}", "password": "SecretLink@123" }
-```
-
-Field rules:
-- `token` — required, 64-char hex string
-- `password` — optional, required if the link was password-protected
-
-**Success (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "contract": {
-      "title": "My NDA",
-      "type": "NDA",
-      "content": "...",
-      "sharedAt": "2026-04-08T10:00:00.000Z",
-      "permissions": "view_content"
-    }
-  }
-}
 ```
 
 ---
