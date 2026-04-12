@@ -1044,6 +1044,281 @@ Authorization: Bearer {{access_token}}
 
 ---
 
+## 🧠 8b. AI Features — `/api/v1/ai`
+
+> All routes require `Authorization: Bearer {{access_token}}` + org membership.
+> Rate-limited to **10 requests/min** per user (AI calls consume LLM tokens).
+
+### POST — Summarize a Clause _(🔒 Protected)_
+
+Get a quick plain-English explanation of a single contract clause.
+
+```
+POST {{base_url}}/ai/summarize-clause
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "clauseText": "The Receiving Party shall not disclose any Confidential Information to any third party without the prior written consent of the Disclosing Party.",
+  "contractType": "NDA"
+}
+```
+
+- `clauseText` — required, 10–10,000 chars
+- `contractType` — optional, provides context (e.g. `NDA`, `SaaS Agreement`)
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Clause summarized successfully.",
+  "data": {
+    "summary": "This clause prevents the receiving party from sharing any confidential information with outside parties unless they get written approval first.",
+    "implications": ["You cannot share project details with subcontractors without written consent"],
+    "actionItems": ["Ensure all team members are aware of this restriction"],
+    "riskLevel": "low",
+    "isStandard": true,
+    "tokensUsed": 215,
+    "provider": "groq",
+    "latencyMs": 890
+  }
+}
+```
+
+---
+
+### POST — Ask a Question About a Contract _(🔒 Protected)_
+
+"Chat with your contract" — ask any question and get answers grounded in the contract text.
+
+```
+POST {{base_url}}/ai/ask
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{
+  "contractId": "{{contract_id}}",
+  "question": "What happens if I breach the confidentiality clause?",
+  "chatHistory": []
+}
+```
+
+- `contractId` — required, valid MongoDB ObjectId
+- `question` — required, 5–1,000 chars
+- `chatHistory` — optional, array of prior `{ role, content }` turns (max 20) for multi-turn conversations
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Question answered successfully.",
+  "data": {
+    "answer": "According to Clause 7, a breach of confidentiality may result in injunctive relief and monetary damages as determined by arbitration.",
+    "confidence": "high",
+    "relatedClauses": ["Clause 7 - Remedies", "Clause 3 - Confidentiality"],
+    "caveat": "The contract does not specify a cap on damages.",
+    "tokensUsed": 540,
+    "provider": "groq",
+    "latencyMs": 1200
+  }
+}
+```
+
+---
+
+### POST — Extract Key Terms _(🔒 Protected)_
+
+Pull out all defined terms, parties, governing law, and contract metadata.
+
+```
+POST {{base_url}}/ai/extract-terms
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "contractId": "{{contract_id}}" }
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Key terms extracted successfully.",
+  "data": {
+    "terms": [
+      { "term": "Confidential Information", "definition": "Any non-public information disclosed by either party...", "section": "Section 1 - Definitions" }
+    ],
+    "parties": [
+      { "name": "Acme Corp", "role": "Disclosing Party", "type": "company" },
+      { "name": "John Doe", "role": "Receiving Party", "type": "individual" }
+    ],
+    "contractType": "NDA",
+    "governingLaw": "State of Delaware, USA",
+    "currency": "",
+    "totalValue": "",
+    "duration": "2 years from effective date",
+    "tokensUsed": 620,
+    "provider": "groq",
+    "latencyMs": 1050
+  }
+}
+```
+
+---
+
+### POST — Explain Risk Score _(🔒 Protected)_
+
+Explain WHY a contract received its risk score and what to do about it.
+
+```
+POST {{base_url}}/ai/explain-risk
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "analysisId": "{{analysis_id}}" }
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Risk explanation generated successfully.",
+  "data": {
+    "explanation": "This contract received a risk score of 72/100 because it contains several one-sided clauses...",
+    "topRisks": [
+      { "risk": "Unlimited Liability", "severity": "high", "description": "No cap on damages for the signing party" },
+      { "risk": "Auto-Renewal", "severity": "medium", "description": "Contract auto-renews with only 7 days notice" }
+    ],
+    "mitigations": ["Negotiate a liability cap", "Extend the notice period to 30 days"],
+    "overallRecommendation": "negotiate",
+    "tokensUsed": 780,
+    "provider": "groq",
+    "latencyMs": 1400
+  }
+}
+```
+
+---
+
+### POST — Translate Analysis _(🔒 Protected)_
+
+Translate an analysis summary and key clauses into another language.
+
+```
+POST {{base_url}}/ai/translate
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "analysisId": "{{analysis_id}}", "targetLanguage": "Hindi" }
+```
+
+- `analysisId` — required, valid MongoDB ObjectId
+- `targetLanguage` — required, e.g. `Spanish`, `Hindi`, `French`, `German`, `Chinese`
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "Analysis translated to Hindi successfully.",
+  "data": {
+    "translatedSummary": "यह अनुबंध दोनों पक्षों के बीच...",
+    "translatedClauses": [
+      { "title": "गोपनीयता खंड", "explanation": "यह खंड..." }
+    ],
+    "translatedObligations": {
+      "yourObligations": ["सभी जानकारी गोपनीय रखें"],
+      "otherPartyObligations": ["समय पर भुगतान करें"]
+    },
+    "targetLanguage": "Hindi",
+    "tokensUsed": 910,
+    "provider": "groq",
+    "latencyMs": 1600
+  }
+}
+```
+
+---
+
+### POST — Compliance Check _(🔒 Protected)_
+
+Check a contract against a specific regulatory framework (GDPR, HIPAA, SOX, etc.).
+
+```
+POST {{base_url}}/ai/compliance
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+```
+
+```json
+{ "contractId": "{{contract_id}}", "framework": "GDPR" }
+```
+
+- `contractId` — required, valid MongoDB ObjectId
+- `framework` — optional, one of: `GDPR`, `HIPAA`, `SOX`, `PCI-DSS`, `CCPA`, `GENERAL` (default: `GDPR`)
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "GDPR compliance check completed.",
+  "data": {
+    "framework": "GDPR",
+    "complianceScore": 65,
+    "compliant": false,
+    "issues": [
+      {
+        "requirement": "Article 28 - Data Processing Agreement",
+        "status": "non-compliant",
+        "finding": "No data processing agreement clause found",
+        "recommendation": "Add a DPA clause specifying data processing roles and responsibilities"
+      }
+    ],
+    "missingClauses": ["Data Processing Agreement", "Right to Erasure"],
+    "recommendations": ["Add a dedicated GDPR compliance section"],
+    "disclaimer": "This is automated AI analysis and should not replace professional compliance review.",
+    "tokensUsed": 1100,
+    "provider": "groq",
+    "latencyMs": 2100
+  }
+}
+```
+
+---
+
+### GET — Provider Status _(🔒 Protected)_
+
+Check which AI provider is active and configured.
+
+```
+GET {{base_url}}/ai/providers
+Authorization: Bearer {{access_token}}
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "AI provider status retrieved.",
+  "data": {
+    "providers": {
+      "groq": { "configured": true, "isPrimary": true },
+      "openrouter": { "configured": false, "isPrimary": false }
+    }
+  }
+}
+```
+
+---
+
 ## 🔔 9. Notifications — `/api/v1/notifications`
 
 > All routes require `Authorization: Bearer {{access_token}}`
@@ -3044,10 +3319,15 @@ These are the env vars used by this project. Set them in your `.env` file.
 | `PASETO_ACCESS_EXPIRY`          | Yes      | Access token TTL (e.g. `15m`)                        |
 | `PASETO_REFRESH_EXPIRY`         | Yes      | Refresh token TTL (e.g. `7d`)                        |
 | `PASETO_REFRESH_COOKIE_MAX_AGE_MS` | Yes   | Refresh cookie max-age in milliseconds (e.g. `604800000`) |
-| `OPENROUTER_API_KEY`            | Yes      | OpenRouter key for AI analysis (`sk-or-v1-...`)      |
-| `OPENROUTER_BASE_URL`           | Yes      | `https://openrouter.ai/api/v1`                       |
-| `AI_PRIMARY_MODEL`              | Yes      | Primary AI model slug                                |
-| `AI_FALLBACK_MODEL`             | Yes      | Fallback AI model slug                               |
+| `AI_PROVIDER`                   | Yes      | Primary AI provider: `groq` or `openrouter`          |
+| `AI_PRIMARY_MODEL`              | Yes      | Primary AI model (default `llama-3.3-70b-versatile`) |
+| `AI_FALLBACK_MODEL`             | Yes      | Fallback AI model (default `llama-3.1-8b-instant`)   |
+| `AI_DIFF_MODEL`                 | No       | Model for diff analysis (default `llama-3.1-8b-instant`) |
+| `AI_REQUEST_TIMEOUT_MS`         | No       | AI request timeout in ms (default `60000`)           |
+| `GROQ_API_KEY`                  | Yes      | Groq API key (`gsk_...`) — get at console.groq.com   |
+| `GROQ_BASE_URL`                 | No       | `https://api.groq.com/openai/v1`                     |
+| `OPENROUTER_API_KEY`            | No       | OpenRouter key (optional fallback)                   |
+| `OPENROUTER_BASE_URL`           | No       | `https://openrouter.ai/api/v1`                       |
 | `RATE_LIMIT_WINDOW_MS`          | No       | Rate limit window in ms (default `60000`)            |
 | `RATE_LIMIT_MAX`                | No       | Max requests per window (default `100`)              |
 | `MAX_FILE_SIZE_MB`              | Yes      | Max contract upload size in MB (default `5`)         |
@@ -3083,6 +3363,7 @@ These are the env vars used by this project. Set them in your `.env` file.
 | 6  | Workflow Status  | `/api/v1/contracts/:id/status`             | 3         | ✅            |
 | 7  | Comments         | `/api/v1/contracts/:contractId/comments`   | 4         | ✅            |
 | 8  | Analyses         | `/api/v1/analyses`                         | 3         | ✅            |
+| 8b | AI Features      | `/api/v1/ai`                               | 7         | ✅            |
 | 9  | Notifications    | `/api/v1/notifications`                    | 6         | ✅            |
 | 10 | Enrichment       | `/api/v1/enrichment`                       | 10        | ✅            |
 | 11 | Admin            | `/api/v1/admin`                            | 13        | ✅ Admin      |
@@ -3096,4 +3377,4 @@ These are the env vars used by this project. Set them in your `.env` file.
 | 19 | Preferences      | `/api/v1/preferences`                      | 3         | ✅            |
 | 20 | Reports          | `/api/v1/reports`                          | 3         | ✅            |
 | 21 | Public APIs      | External URLs                              | 10        | Varies        |
-|    | **Total**        |                                            | **114**   |               |
+|    | **Total**        |                                            | **121**   |               |

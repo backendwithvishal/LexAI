@@ -10,6 +10,7 @@
  *   /api/v1/orgs          — Organization management
  *   /api/v1/contracts     — Contract CRUD, versioning, status, and comments
  *   /api/v1/analyses      — AI analysis requests and results
+ *   /api/v1/ai            — AI-powered features (Q&A, summarize, compliance, etc.)
  *   /api/v1/notifications — In-app notification feed
  *   /api/v1/enrichment    — Public API enrichment data
  *   /api/v1/admin         — Admin-only platform management
@@ -31,6 +32,7 @@ import userRoutes from './user.routes.js';
 import orgRoutes from './org.routes.js';
 import contractRoutes from './contract.routes.js';
 import analysisRoutes from './analysis.routes.js';
+import aiRoutes from './ai.routes.js';
 import notificationRoutes from './notification.routes.js';
 import enrichmentRoutes from './enrichment.routes.js';
 import adminRoutes from './admin.routes.js';
@@ -52,6 +54,7 @@ router.use('/users', userRoutes);
 router.use('/orgs', orgRoutes);
 router.use('/contracts', contractRoutes);  // Includes /comments and /status sub-routes
 router.use('/analyses', analysisRoutes);
+router.use('/ai', aiRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/enrichment', enrichmentRoutes);
 router.use('/admin', adminRoutes);

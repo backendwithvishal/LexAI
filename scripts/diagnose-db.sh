@@ -78,7 +78,7 @@ echo ""
 # Check environment variables
 echo "5️⃣  Checking environment variables..."
 MONGO_URI=$(docker exec lexai-worker env 2>/dev/null | grep MONGO_URI | cut -d= -f2)
-OPENROUTER_KEY=$(docker exec lexai-worker env 2>/dev/null | grep OPENROUTER_API_KEY | cut -d= -f2)
+GROQ_KEY=$(docker exec lexai-worker env 2>/dev/null | grep GROQ_API_KEY | cut -d= -f2)
 
 if [ -z "$MONGO_URI" ]; then
     echo "❌ MONGO_URI not set in worker"
@@ -86,13 +86,13 @@ else
     echo "✅ MONGO_URI: $MONGO_URI"
 fi
 
-if [ -z "$OPENROUTER_KEY" ]; then
-    echo "❌ OPENROUTER_API_KEY not set in worker"
-elif [ "$OPENROUTER_KEY" = "sk-or-v1-your-key-here" ]; then
-    echo "⚠️  OPENROUTER_API_KEY is still the example value"
-    echo "   → Update .env with your actual API key"
+if [ -z "$GROQ_KEY" ]; then
+    echo "❌ GROQ_API_KEY not set in worker"
+elif [ "$GROQ_KEY" = "gsk_your-groq-api-key-here" ]; then
+    echo "⚠️  GROQ_API_KEY is still the example value"
+    echo "   → Update .env with your actual Groq API key"
 else
-    echo "✅ OPENROUTER_API_KEY is set (${OPENROUTER_KEY:0:20}...)"
+    echo "✅ GROQ_API_KEY is set (${GROQ_KEY:0:20}...)"
 fi
 echo ""
 
@@ -114,12 +114,12 @@ if [ -z "$MONGODB_STATUS" ] || [ -z "$WORKER_STATUS" ]; then
     echo "🔧 Quick Fix:"
     echo "   docker-compose up -d"
     echo ""
-elif [ "$OPENROUTER_KEY" = "sk-or-v1-your-key-here" ] || [ -z "$OPENROUTER_KEY" ]; then
-    echo "⚠️  ISSUE: OpenRouter API key not configured"
+elif [ "$GROQ_KEY" = "gsk_your-groq-api-key-here" ] || [ -z "$GROQ_KEY" ]; then
+    echo "⚠️  ISSUE: Groq API key not configured"
     echo ""
     echo "🔧 Quick Fix:"
     echo "   1. Edit .env file"
-    echo "   2. Set OPENROUTER_API_KEY=your-actual-key"
+    echo "   2. Set GROQ_API_KEY=your-actual-key"
     echo "   3. Run: docker-compose restart worker"
     echo ""
 elif [ "$PENDING" -gt 0 ] && [ "$COMPLETED" -eq 0 ]; then

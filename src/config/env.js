@@ -56,11 +56,21 @@ const envSchema = z.object({
   PASETO_REFRESH_EXPIRY: z.string().regex(/^\d+[smhd]$/, 'Must be like 15m, 7d, 1h, 30s').default('7d'),
   PASETO_REFRESH_COOKIE_MAX_AGE_MS: z.coerce.number().default(604800000), // 7 days in ms
 
-  // ─── OpenRouter AI ────────────────────────────────────────
+  // ─── AI Provider Configuration ────────────────────────────
+  // Which provider to use as primary: 'groq' or 'openrouter'
+  AI_PROVIDER: z.enum(['groq', 'openrouter']).default('groq'),
+  AI_PRIMARY_MODEL: z.string().default('llama-3.3-70b-versatile'),
+  AI_FALLBACK_MODEL: z.string().default('llama-3.1-8b-instant'),
+  AI_DIFF_MODEL: z.string().default('llama-3.1-8b-instant'),
+  AI_REQUEST_TIMEOUT_MS: z.coerce.number().default(60000),
+
+  // ─── Groq ──────────────────────────────────────────────────
+  GROQ_API_KEY: z.string().default(''),
+  GROQ_BASE_URL: z.string().url().default('https://api.groq.com/openai/v1'),
+
+  // ─── OpenRouter (optional fallback) ────────────────────────
   OPENROUTER_API_KEY: z.string().default(''),
   OPENROUTER_BASE_URL: z.string().url().default('https://openrouter.ai/api/v1'),
-  AI_PRIMARY_MODEL: z.string().default('meta-llama/llama-3.1-8b-instruct:free'),
-  AI_FALLBACK_MODEL: z.string().default('mistralai/mistral-7b-instruct:free'),
 
   // ─── Rate Limiting ────────────────────────────────────────
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),  // 1 minute
@@ -132,7 +142,7 @@ if (env.NODE_ENV === 'production') {
         'admin@lexai.io',
     ];
 
-    const sensitiveKeys = ['PASETO_LOCAL_SECRET', 'OPENROUTER_API_KEY'];
+    const sensitiveKeys = ['PASETO_LOCAL_SECRET', 'GROQ_API_KEY', 'OPENROUTER_API_KEY'];
     for (const key of sensitiveKeys) {
         const val = env[key] || '';
         if (PLACEHOLDER_PATTERNS.some(p => val.toLowerCase().includes(p.toLowerCase()))) {

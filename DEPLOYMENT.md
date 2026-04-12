@@ -153,11 +153,16 @@ PASETO_ACCESS_EXPIRY=15m
 PASETO_REFRESH_EXPIRY=7d
 PASETO_REFRESH_COOKIE_MAX_AGE_MS=604800000
 
-# OpenRouter AI
-OPENROUTER_API_KEY=sk-or-v1-your-openrouter-api-key-here
+# AI Provider (Groq — primary)
+AI_PROVIDER=groq
+AI_PRIMARY_MODEL=llama-3.3-70b-versatile
+AI_FALLBACK_MODEL=llama-3.1-8b-instant
+AI_DIFF_MODEL=llama-3.1-8b-instant
+GROQ_API_KEY=gsk_your-groq-api-key-here
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+# OpenRouter (optional fallback — leave empty to disable)
+OPENROUTER_API_KEY=
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-AI_PRIMARY_MODEL=meta-llama/llama-3.1-8b-instruct:free
-AI_FALLBACK_MODEL=mistralai/mistral-7b-instruct:free
 
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=60000
@@ -222,7 +227,7 @@ Expected response:
 
 ### 1. "Environment validation failed"
 **Cause:** Missing required env vars.
-**Fix:** Check all env vars are set in Render dashboard. Especially `MONGO_URI`, `RABBITMQ_URL`, `PASETO_LOCAL_SECRET`, and `OPENROUTER_API_KEY`.
+**Fix:** Check all env vars are set in Render dashboard. Especially `MONGO_URI`, `RABBITMQ_URL`, `PASETO_LOCAL_SECRET`, and `GROQ_API_KEY`.
 
 ### 2. "MongooseServerSelectionError: connection timed out"
 **Cause:** MongoDB Atlas IP whitelist blocking Render's IPs.
@@ -263,4 +268,4 @@ Expected response:
 | **MongoDB Atlas M0** | 512 MB storage, shared cluster |
 | **Redis Cloud** | 30 MB, 1 database |
 | **CloudAMQP Lemur** | 1M messages/month, 20 connections |
-| **OpenRouter** | Free models have rate limits (~10 req/min) |
+| **Groq** | 30 req/min, 14,400 req/day (free tier, varies by model) |

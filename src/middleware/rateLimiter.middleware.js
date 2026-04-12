@@ -26,6 +26,7 @@ const PRESETS = {
     strict:   { windowMs: 15 * 60_000, max: 5   },  // 5 req / 15 min — password reset, OTP
     upload:   { windowMs: 60_000,      max: 20  },  // 20 uploads / min
     analysis: { windowMs: 60_000,      max: 30  },  // 30 AI requests / min
+    ai:       { windowMs: 60_000,      max: 10  },  // 10 AI feature requests / min
 };
 
 // Lua script: atomically increment counter and set TTL on first use.

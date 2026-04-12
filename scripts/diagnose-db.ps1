@@ -85,7 +85,7 @@ Write-Host ""
 # Check environment variables
 Write-Host "5️⃣  Checking environment variables..." -ForegroundColor Yellow
 $mongoUri = docker exec lexai-worker env 2>$null | Select-String "MONGO_URI" | ForEach-Object { $_.ToString().Split('=')[1] }
-$openrouterKey = docker exec lexai-worker env 2>$null | Select-String "OPENROUTER_API_KEY" | ForEach-Object { $_.ToString().Split('=')[1] }
+$groqKey = docker exec lexai-worker env 2>$null | Select-String "GROQ_API_KEY" | ForEach-Object { $_.ToString().Split('=')[1] }
 
 if ([string]::IsNullOrEmpty($mongoUri)) {
     Write-Host "❌ MONGO_URI not set in worker" -ForegroundColor Red
@@ -93,14 +93,14 @@ if ([string]::IsNullOrEmpty($mongoUri)) {
     Write-Host "✅ MONGO_URI: $mongoUri" -ForegroundColor Green
 }
 
-if ([string]::IsNullOrEmpty($openrouterKey)) {
-    Write-Host "❌ OPENROUTER_API_KEY not set in worker" -ForegroundColor Red
-} elseif ($openrouterKey -eq "sk-or-v1-your-key-here") {
-    Write-Host "⚠️  OPENROUTER_API_KEY is still the example value" -ForegroundColor Yellow
-    Write-Host "   → Update .env with your actual API key" -ForegroundColor Yellow
+if ([string]::IsNullOrEmpty($groqKey)) {
+    Write-Host "❌ GROQ_API_KEY not set in worker" -ForegroundColor Red
+} elseif ($groqKey -eq "gsk_your-groq-api-key-here") {
+    Write-Host "⚠️  GROQ_API_KEY is still the example value" -ForegroundColor Yellow
+    Write-Host "   → Update .env with your actual Groq API key" -ForegroundColor Yellow
 } else {
-    $keyPreview = $openrouterKey.Substring(0, [Math]::Min(20, $openrouterKey.Length))
-    Write-Host "✅ OPENROUTER_API_KEY is set ($keyPreview...)" -ForegroundColor Green
+    $keyPreview = $groqKey.Substring(0, [Math]::Min(20, $groqKey.Length))
+    Write-Host "✅ GROQ_API_KEY is set ($keyPreview...)" -ForegroundColor Green
 }
 Write-Host ""
 
@@ -123,12 +123,12 @@ if ([string]::IsNullOrEmpty($mongoStatus) -or [string]::IsNullOrEmpty($workerSta
     Write-Host "🔧 Quick Fix:" -ForegroundColor Yellow
     Write-Host "   docker-compose up -d" -ForegroundColor White
     Write-Host ""
-} elseif ($openrouterKey -eq "sk-or-v1-your-key-here" -or [string]::IsNullOrEmpty($openrouterKey)) {
-    Write-Host "⚠️  ISSUE: OpenRouter API key not configured" -ForegroundColor Yellow
+} elseif ($groqKey -eq "gsk_your-groq-api-key-here" -or [string]::IsNullOrEmpty($groqKey)) {
+    Write-Host "⚠️  ISSUE: Groq API key not configured" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "🔧 Quick Fix:" -ForegroundColor Yellow
     Write-Host "   1. Edit .env file" -ForegroundColor White
-    Write-Host "   2. Set OPENROUTER_API_KEY=your-actual-key" -ForegroundColor White
+    Write-Host "   2. Set GROQ_API_KEY=your-actual-key" -ForegroundColor White
     Write-Host "   3. Run: docker-compose restart worker" -ForegroundColor White
     Write-Host ""
 } elseif ($pending -gt 0 -and $completed -eq 0) {
