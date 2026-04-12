@@ -6,10 +6,13 @@
  * All endpoints require authentication.
  * Notifications are org-scoped — users only see their org's notifications.
  *
- *   GET    /                — List notifications (paginated, filterable by read status)
- *   GET    /user            — List user-specific notifications
+ * ⚠️ ROUTE ORDER: Static routes MUST be defined BEFORE dynamic /:id routes
+ * to prevent Express from treating "unread-count", "user", and "read-all" as IDs.
+ *
  *   GET    /unread-count    — Get unread count for badge display
+ *   GET    /user            — List user-specific notifications
  *   PATCH  /read-all        — Mark all notifications as read
+ *   GET    /                — List notifications (paginated, filterable by read status)
  *   PATCH  /:id/read        — Mark a single notification as read
  *   DELETE /:id             — Delete a notification
  */
@@ -17,6 +20,8 @@
 import { Router } from 'express';
 import * as notificationController from '../controllers/notification.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
+import * as notificationValidator from '../validators/notification.validator.js';
 import { asyncWrapper } from '../utils/asyncWrapper.js';
 
 const router = Router();
@@ -24,15 +29,16 @@ const router = Router();
 // All notification routes require authentication
 router.use(authenticate);
 
-router.get('/', asyncWrapper(notificationController.listNotifications));
-// user must be before /:id to prevent "user" being matched as an ID
-router.get('/user', asyncWrapper(notificationController.getUserNotifications));
-// unread-count must be declared BEFORE /:id to prevent "unread-count" being matched as an ID
+// ─── Static routes (MUST be before /:id to prevent route conflicts) ──────────
 router.get('/unread-count', asyncWrapper(notificationController.getUnreadCount));
-// Bulk mark-as-read — must be before /:id/read to avoid route conflict
+router.get('/user', validate(notificationValidator.listNotificationsSchema, 'query'), asyncWrapper(notificationController.getUserNotifications));
 router.patch('/read-all', asyncWrapper(notificationController.markAllAsRead));
-router.patch('/:id/read', asyncWrapper(notificationController.markAsRead));
-router.delete('/:id', asyncWrapper(notificationController.deleteNotification));
+
+// ─── List route ──────────────────────────────────────────────────────────────
+router.get('/', validate(notificationValidator.listNotificationsSchema, 'query'), asyncWrapper(notificationController.listNotifications));
+
+// ─── Dynamic /:id routes (ObjectId validated) ────────────────────────────────
+router.patch('/:id/read', validate(notificationValidator.notificationIdParam, 'params'), asyncWrapper(notificationController.markAsRead));
+router.delete('/:id', validate(notificationValidator.notificationIdParam, 'params'), asyncWrapper(notificationController.deleteNotification));
 
 export default router;
-

@@ -11,7 +11,7 @@
  */
 
 import Notification from '../models/Notification.model.js';
-import { sendSuccess, buildPaginationMeta } from '../utils/apiResponse.js';
+import { sendSuccess, sendError, buildPaginationMeta } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 
 /**
@@ -61,21 +61,23 @@ export async function getUnreadCount(req, res) {
 /**
  * PATCH /notifications/:id/read
  * Mark a single notification as read.
+ * Strictly user-scoped — cannot mark other users' notifications.
  */
 export async function markAsRead(req, res) {
-    const { orgId } = req.user;
+    const { userId } = req.user;
     const { id } = req.params;
 
     const notification = await Notification.findOneAndUpdate(
-        { _id: id, orgId },
+        { _id: id, userId },
         { read: true, readAt: new Date() },
         { new: true }
     );
 
     if (!notification) {
-        return res.status(HTTP.NOT_FOUND).json({
-            success: false,
-            error: { code: 'NOT_FOUND', message: 'Notification not found.' },
+        return sendError(res, {
+            statusCode: HTTP.NOT_FOUND,
+            code: 'NOT_FOUND',
+            message: 'Notification not found.',
         });
     }
 
@@ -134,6 +136,7 @@ export async function getUserNotifications(req, res) {
 /**
  * DELETE /notifications/:id
  * Delete a notification.
+ * Strictly user-scoped — cannot delete other users' notifications.
  */
 export async function deleteNotification(req, res) {
     const { userId } = req.user;
@@ -142,11 +145,13 @@ export async function deleteNotification(req, res) {
     const notification = await Notification.findOneAndDelete({ _id: id, userId });
 
     if (!notification) {
-        return res.status(HTTP.NOT_FOUND).json({
-            success: false,
-            error: { code: 'NOT_FOUND', message: 'Notification not found.' },
+        return sendError(res, {
+            statusCode: HTTP.NOT_FOUND,
+            code: 'NOT_FOUND',
+            message: 'Notification not found.',
         });
     }
 
     sendSuccess(res, { message: 'Notification deleted.' });
 }
+

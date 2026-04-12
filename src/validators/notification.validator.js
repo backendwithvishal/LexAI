@@ -13,3 +13,17 @@ export const listNotificationsSchema = Joi.object({
     read: Joi.boolean(),
     type: Joi.string().trim(),
 });
+
+/**
+ * Validate :id path param as a 24-char hex MongoDB ObjectId.
+ * Applied on PATCH /:id/read and DELETE /:id routes.
+ */
+export const notificationIdParam = Joi.object({
+    id: Joi.string()
+        .pattern(/^[0-9a-fA-F]{24}$/)
+        .required()
+        .messages({
+            'string.pattern.base': 'Invalid notification ID format. Must be a 24-character hex string.',
+            'any.required': 'Notification ID is required.',
+        }),
+});

@@ -1070,8 +1070,10 @@ Authorization: Bearer {{access_token}}
 ```json
 {
   "success": true,
-  "notifications": [ { ... } ],
-  "meta": { "total": 5, "page": 1, "limit": 20, "totalPages": 1 }
+  "data": {
+    "notifications": [ { ... } ],
+    "meta": { "total": 5, "page": 1, "limit": 20, "totalPages": 1 }
+  }
 }
 ```
 
@@ -1086,7 +1088,7 @@ Authorization: Bearer {{access_token}}
 
 **Success (200):**
 ```json
-{ "success": true, "unreadCount": 3 }
+{ "success": true, "data": { "unreadCount": 3 } }
 ```
 
 ---
@@ -1131,7 +1133,7 @@ Authorization: Bearer {{access_token}}
 
 **Success (200):**
 ```json
-{ "success": true, "modifiedCount": 3 }
+{ "success": true, "message": "All notifications marked as read.", "data": { "modifiedCount": 3 } }
 ```
 
 ---
@@ -1145,7 +1147,7 @@ Authorization: Bearer {{access_token}}
 
 **Success (200):**
 ```json
-{ "success": true, "notification": { "_id": "...", "read": true, "readAt": "2026-03-03T17:00:00Z" } }
+{ "success": true, "message": "Notification marked as read.", "data": { "notification": { "_id": "...", "read": true, "readAt": "2026-03-03T17:00:00Z" } } }
 ```
 
 ---
@@ -2698,7 +2700,10 @@ Returns org activity: total actions, active users, and daily action counts.
 
 ## 🌍 21. Public APIs (from public-apis/public-apis)
 
-> These are free public APIs relevant to LexAI. All require `Authorization: Bearer {{access_token}}` on the LexAI enrichment proxy, or can be called directly using the URLs below.
+> **Note:** These APIs are called directly and are NOT yet proxied through the LexAI enrichment backend.
+> If an API is already proxied through `/api/v1/enrichment/`, it belongs in Section 10, not here.
+
+> These are free public APIs relevant to LexAI that can be called directly using the URLs below.
 > No calendar APIs are included.
 
 ---
@@ -2736,13 +2741,6 @@ Key: none required for community tier
 - `riot: true` = known benign service (Google, Cloudflare, etc.)
 - Auth: No key needed for community endpoint (1000 req/day)
 - Docs: [https://docs.greynoise.io](https://docs.greynoise.io)
-
----
-
-#### HaveIBeenPwned — Email Breach Check *(already in Section 10)*
-
-Already integrated at `GET {{base_url}}/enrichment/email/breaches?email=...`
-Requires `HIBP_API_KEY` in `.env`.
 
 ---
 
@@ -2880,12 +2878,6 @@ GET https://open.er-api.com/v6/latest/{{base_currency}}
 - Auth: None required for free tier
 - Free tier: 1500 requests/month
 - Docs: [https://www.exchangerate-api.com/docs/free](https://www.exchangerate-api.com/docs/free)
-
----
-
-#### Frankfurter — ECB Exchange Rates *(already in Section 10)*
-
-Already integrated at `GET {{base_url}}/enrichment/currency/rate` and `/rates`. No key needed.
 
 ---
 
@@ -3067,37 +3059,49 @@ Add these to your `.env` as needed (all optional — features degrade gracefully
 
 ## 🔑 Environment Variables Reference
 
-These are the only env vars relevant to this project. Set them in your `.env` file.
+These are the env vars used by this project. Set them in your `.env` file.
 
-| Variable                    | Required | Description                                          |
-|-----------------------------|----------|------------------------------------------------------|
-| `NODE_ENV`                  | Yes      | `development` or `production`                        |
-| `PORT`                      | Yes      | Server port (default `3500`)                         |
-| `API_VERSION`               | Yes      | API version prefix (default `v1`)                    |
-| `MONGO_URI`                 | Yes      | MongoDB connection string                            |
-| `REDIS_HOST`                | Yes      | Redis host                                           |
-| `REDIS_PORT`                | Yes      | Redis port (default `6379`)                          |
-| `REDIS_PASSWORD`            | No       | Redis password (leave empty for local)               |
-| `RABBITMQ_URL`              | Yes      | RabbitMQ AMQP URL                                    |
-| `PASETO_LOCAL_SECRET`       | Yes      | Min 32-char secret for PASETO token signing          |
-| `PASETO_ACCESS_EXPIRY`      | Yes      | Access token TTL (e.g. `15m`)                        |
-| `PASETO_REFRESH_EXPIRY`     | Yes      | Refresh token TTL (e.g. `7d`)                        |
-| `OPENROUTER_API_KEY`        | Yes      | OpenRouter key for AI analysis (`sk-or-v1-...`)      |
-| `OPENROUTER_BASE_URL`       | Yes      | `https://openrouter.ai/api/v1`                       |
-| `AI_PRIMARY_MODEL`          | Yes      | Primary AI model slug                                |
-| `AI_FALLBACK_MODEL`         | Yes      | Fallback AI model slug                               |
-| `MAX_FILE_SIZE_MB`          | Yes      | Max contract upload size in MB (default `5`)         |
-| `ALLOWED_MIME_TYPES`        | Yes      | Comma-separated allowed MIME types                   |
-| `ALLOWED_ORIGINS`           | Yes      | Comma-separated CORS origins                         |
-| `SMTP_HOST`                 | Yes      | SMTP server host                                     |
-| `SMTP_PORT`                 | Yes      | SMTP port (587 for TLS)                              |
-| `SMTP_USER`                 | Yes      | SMTP username                                        |
-| `SMTP_PASS`                 | Yes      | SMTP password                                        |
-| `EMAIL_FROM`                | Yes      | Sender address (e.g. `noreply@lexai.io`)             |
-| `IPINFO_TOKEN`              | No       | IPinfo token for higher rate limits (50k/mo free)    |
-| `HIBP_API_KEY`              | No       | HaveIBeenPwned API key for breach checks             |
-| `ADMIN_EMAIL`               | No       | Bootstrap admin email (seed script only)             |
-| `ADMIN_PASSWORD`            | No       | Bootstrap admin password (seed script only)          |
+| Variable                        | Required | Description                                          |
+|---------------------------------|----------|------------------------------------------------------|
+| `NODE_ENV`                      | Yes      | `development` or `production`                        |
+| `PORT`                          | Yes      | Server port (default `3500`)                         |
+| `API_VERSION`                   | Yes      | API version prefix (default `v1`)                    |
+| `MONGO_URI`                     | Yes      | MongoDB connection string                            |
+| `REDIS_HOST`                    | Yes      | Redis host                                           |
+| `REDIS_PORT`                    | Yes      | Redis port (default `6379`)                          |
+| `REDIS_PASSWORD`                | No       | Redis password (leave empty for local)               |
+| `RABBITMQ_URL`                  | Yes      | RabbitMQ AMQP URL                                    |
+| `ANALYSIS_QUEUE`                | Yes      | RabbitMQ queue name for analysis jobs                |
+| `ALERT_QUEUE`                   | Yes      | RabbitMQ queue name for alert jobs                   |
+| `DLX_EXCHANGE`                  | Yes      | RabbitMQ dead letter exchange name                   |
+| `PASETO_LOCAL_SECRET`           | Yes      | Min 32-char secret for PASETO token signing          |
+| `PASETO_ACCESS_EXPIRY`          | Yes      | Access token TTL (e.g. `15m`)                        |
+| `PASETO_REFRESH_EXPIRY`         | Yes      | Refresh token TTL (e.g. `7d`)                        |
+| `PASETO_REFRESH_COOKIE_MAX_AGE_MS` | Yes   | Refresh cookie max-age in milliseconds (e.g. `604800000`) |
+| `OPENROUTER_API_KEY`            | Yes      | OpenRouter key for AI analysis (`sk-or-v1-...`)      |
+| `OPENROUTER_BASE_URL`           | Yes      | `https://openrouter.ai/api/v1`                       |
+| `AI_PRIMARY_MODEL`              | Yes      | Primary AI model slug                                |
+| `AI_FALLBACK_MODEL`             | Yes      | Fallback AI model slug                               |
+| `RATE_LIMIT_WINDOW_MS`          | No       | Rate limit window in ms (default `60000`)            |
+| `RATE_LIMIT_MAX`                | No       | Max requests per window (default `100`)              |
+| `MAX_FILE_SIZE_MB`              | Yes      | Max contract upload size in MB (default `5`)         |
+| `ALLOWED_MIME_TYPES`            | Yes      | Comma-separated allowed MIME types                   |
+| `ALLOWED_ORIGINS`               | Yes      | Comma-separated CORS origins                         |
+| `SMTP_HOST`                     | Yes      | SMTP server host                                     |
+| `SMTP_PORT`                     | Yes      | SMTP port (587 for TLS)                              |
+| `SMTP_SECURE`                   | No       | `true` for port 465, `false` for STARTTLS on 587     |
+| `SMTP_USER`                     | Yes      | SMTP username                                        |
+| `SMTP_PASS`                     | Yes      | SMTP password                                        |
+| `EMAIL_FROM`                    | Yes      | Sender address (e.g. `noreply@lexai.io`)             |
+| `REST_COUNTRIES_URL`            | No       | REST Countries API base URL                          |
+| `WORLD_TIME_API_URL`            | No       | World Time API base URL                              |
+| `EMAIL_VERIFICATION_EXPIRY`     | No       | OTP verification TTL in seconds (default `600`)      |
+| `PASSWORD_RESET_EXPIRY`         | No       | Password reset token TTL in seconds (default `3600`) |
+| `OTP_EXPIRY`                    | No       | OTP code TTL in seconds (default `600`)              |
+| `IPINFO_TOKEN`                  | No       | IPinfo token for higher rate limits (50k/mo free)    |
+| `HIBP_API_KEY`                  | No       | HaveIBeenPwned API key for breach checks             |
+| `ADMIN_EMAIL`                   | No       | Bootstrap admin email (seed script only)             |
+| `ADMIN_PASSWORD`                | No       | Bootstrap admin password (seed script only)          |
 
 ---
 
@@ -3106,16 +3110,16 @@ These are the only env vars relevant to this project. Set them in your `.env` fi
 | #  | Module           | Base Path                                  | Endpoints | Auth Required |
 |----|------------------|--------------------------------------------|-----------|---------------|
 | 1  | Health Check     | `/health`                                  | 1         | ❌            |
-| 2  | Auth             | `/api/v1/auth`                             | 11        | Mixed         |
+| 2  | Auth             | `/api/v1/auth`                             | 12        | Mixed         |
 | 3  | Users            | `/api/v1/users`                            | 3         | ✅            |
-| 4  | Organizations    | `/api/v1/orgs`                             | 6         | Mixed         |
-| 5  | Contracts        | `/api/v1/contracts`                        | 8         | ✅            |
+| 4  | Organizations    | `/api/v1/orgs`                             | 7         | Mixed         |
+| 5  | Contracts        | `/api/v1/contracts`                        | 9         | ✅            |
 | 6  | Workflow Status  | `/api/v1/contracts/:id/status`             | 3         | ✅            |
 | 7  | Comments         | `/api/v1/contracts/:contractId/comments`   | 4         | ✅            |
 | 8  | Analyses         | `/api/v1/analyses`                         | 3         | ✅            |
 | 9  | Notifications    | `/api/v1/notifications`                    | 6         | ✅            |
 | 10 | Enrichment       | `/api/v1/enrichment`                       | 10        | ✅            |
-| 11 | Admin            | `/api/v1/admin`                            | 6         | ✅ Admin      |
+| 11 | Admin            | `/api/v1/admin`                            | 13        | ✅ Admin      |
 | 12 | Dashboard        | `/api/v1/dashboard`                        | 4         | ✅            |
 | 13 | Tags             | `/api/v1/tags`                             | 3         | ✅            |
 | 14 | Bookmarks        | `/api/v1/bookmarks`                        | 3         | ✅            |
@@ -3126,4 +3130,4 @@ These are the only env vars relevant to this project. Set them in your `.env` fi
 | 19 | Preferences      | `/api/v1/preferences`                      | 3         | ✅            |
 | 20 | Reports          | `/api/v1/reports`                          | 3         | ✅            |
 | 21 | Public APIs      | External URLs                              | 10        | Varies        |
-|    | **Total**        |                                            | **~104**  |               |
+|    | **Total**        |                                            | **114**   |               |
