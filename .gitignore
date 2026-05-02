@@ -18,6 +18,7 @@ npm-debug.log*
 # Environment variables
 .env
 .env.local
+.kiro
 
 # IDE
 .vscode/
