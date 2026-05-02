@@ -161,3 +161,80 @@ export async function getAnalysesByContract(contractId, orgId) {
         .lean();
     return analyses;
 }
+
+/**
+ * Permanently delete a single analysis by ID.
+ * Enforces org isolation, invalidates Redis cache, and writes an audit log entry.
+ */
+export async function deleteAnalysis(analysisId, orgId, userId) {
+    const redis = getRedisClient();
+
+    // Fetch first to confirm existence + read cacheKey before deletion
+    const doc = await Analysis.findOne({ _id: analysisId, orgId }).lean();
+    if (!doc) {
+        throw new AppError('Analysis not found.', 404, 'NOT_FOUND');
+    }
+
+    // Permanently remove from MongoDB
+    await Analysis.deleteOne({ _id: analysisId, orgId });
+
+    // Invalidate Redis cache — non-fatal if Redis is unavailable
+    if (doc.cacheKey) {
+        try {
+            await redis.del(REDIS_KEYS.analysis(doc.cacheKey));
+        } catch (err) {
+            logger.warn('Failed to invalidate analysis cache on delete', { analysisId, cacheKey: doc.cacheKey, err: err.message });
+        }
+    }
+
+    // Audit trail
+    await auditService.log({
+        orgId,
+        userId,
+        action: 'analysis.deleted',
+        resourceType: 'Analysis',
+        resourceId: analysisId,
+        metadata: { contractId: doc.contractId },
+    });
+
+    return { analysisId };
+}
+
+/**
+ * Permanently delete all analyses for a specific contract.
+ * Collects cacheKeys before deletion, then invalidates Redis for each.
+ * Returns the count of deleted documents.
+ */
+export async function deleteAnalysesByContract(contractId, orgId, userId) {
+    const redis = getRedisClient();
+
+    // Collect docs before deletion to read cacheKeys
+    const docs = await Analysis.find({ contractId, orgId }).select('_id cacheKey').lean();
+
+    if (docs.length > 0) {
+        // Permanently remove all matching documents in one operation
+        await Analysis.deleteMany({ contractId, orgId });
+
+        // Invalidate Redis cache for each analysis — non-fatal
+        for (const doc of docs) {
+            if (doc.cacheKey) {
+                try {
+                    await redis.del(REDIS_KEYS.analysis(doc.cacheKey));
+                } catch (err) {
+                    logger.warn('Failed to invalidate analysis cache on bulk delete', { analysisId: doc._id, cacheKey: doc.cacheKey, err: err.message });
+                }
+            }
+        }
+    }
+
+    // Audit trail — single entry for the whole bulk operation
+    await auditService.log({
+        orgId,
+        userId,
+        action: 'analysis.bulk_deleted',
+        resourceType: 'Analysis',
+        metadata: { contractId, deletedCount: docs.length },
+    });
+
+    return { deletedCount: docs.length };
+}

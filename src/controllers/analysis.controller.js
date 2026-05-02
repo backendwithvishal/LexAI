@@ -55,3 +55,20 @@ export async function getAnalysesByContract(req, res) {
     const analyses = await analysisService.getAnalysesByContract(req.params.contractId, orgId);
     sendSuccess(res, { data: { analyses } });
 }
+
+/** DELETE /analyses/:id — permanently delete a single analysis by ID */
+export async function deleteAnalysis(req, res) {
+    const { orgId } = req;
+    const { analysisId } = await analysisService.deleteAnalysis(req.params.id, orgId, req.user.userId);
+    sendSuccess(res, { message: 'Analysis deleted.', data: { analysisId } });
+}
+
+/** DELETE /analyses/contract/:contractId — permanently delete all analyses for a contract */
+export async function deleteAnalysesByContract(req, res) {
+    const { orgId } = req;
+    const { deletedCount } = await analysisService.deleteAnalysesByContract(req.params.contractId, orgId, req.user.userId);
+    sendSuccess(res, {
+        message: `${deletedCount} ${deletedCount === 1 ? 'analysis' : 'analyses'} deleted.`,
+        data: { deletedCount },
+    });
+}
