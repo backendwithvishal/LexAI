@@ -42,8 +42,8 @@ function _initTransporter() {
     port: env.SMTP_PORT,   // 587
     secure: false,            // false = STARTTLS (upgrades from plain to encrypted)
     auth: {
-      user: env.SMTP_USER, // your Gmail address
-      pass: env.SMTP_PASS, // Gmail App Password (not your account password)
+      user: env.MAIL_USER, // Gmail address (from MAIL_USER in .env)
+      pass: env.MAIL_PASS, // Gmail App Password (from MAIL_PASS in .env)
     },
   });
 

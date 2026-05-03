@@ -92,9 +92,9 @@ const envSchema = z.object({
   SMTP_USER: z.string().default(''),
   SMTP_PASS: z.string().default(''),
   EMAIL_FROM: z.string().default('noreply@lexai.io'),
-  // Gmail credentials (maps to SMTP_USER / SMTP_PASS in the transporter)
-  MAIL_USER: z.string().default(''),
-  MAIL_PASS: z.string().default(''),
+  // Gmail credentials — used directly by the nodemailer transporter
+  MAIL_USER: z.string().min(1, 'MAIL_USER (Gmail address) is required'),
+  MAIL_PASS: z.string().min(1, 'MAIL_PASS (Gmail App Password) is required'),
 
   // ─── Redis Token TTLs ─────────────────────────────────────
   // How long password reset tokens live in Redis (seconds)

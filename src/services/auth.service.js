@@ -192,7 +192,10 @@ export async function registerUser({ name, email, password }) {
     // server never delays the register response for the user.
     const otp = await _issueEmailOtp(user._id);
     emailService.sendOtpEmail(user.email, otp).catch((err) => {
-        logger.error({ err: err.message, userId: user._id }, 'Failed to send OTP email after registration');
+        logger.error(
+            { to: user.email, subject: 'OTP verification', code: err.code, err: err.message, userId: user._id },
+            'Failed to send OTP email after registration'
+        );
     });
 
     // Only return the OTP in development so engineers can test without an inbox.
@@ -259,7 +262,10 @@ export async function resendVerificationEmail(email) {
     // Issuing a new OTP overwrites the old one in Redis — the old code is dead.
     const otp = await _issueEmailOtp(user._id);
     emailService.sendOtpEmail(user.email, otp).catch((err) => {
-        logger.error({ err: err.message, userId: user._id }, 'Failed to resend OTP email');
+        logger.error(
+            { to: user.email, subject: 'OTP verification', code: err.code, err: err.message, userId: user._id },
+            'Failed to resend OTP email'
+        );
     });
 
     logger.info({ userId: user._id }, 'OTP resent');
@@ -472,7 +478,10 @@ export async function forgotPassword(email) {
     const resetToken = await _issuePasswordResetToken(user._id);
 
     emailService.sendPasswordResetEmail(user.email, resetToken).catch((err) => {
-        logger.error({ err: err.message, userId: user._id }, 'Failed to send password reset email');
+        logger.error(
+            { to: user.email, subject: 'Password reset', code: err.code, err: err.message, userId: user._id },
+            'Failed to send password reset email'
+        );
     });
 }
 
