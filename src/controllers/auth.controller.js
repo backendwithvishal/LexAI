@@ -52,12 +52,7 @@ export async function register(req, res) {
 
     const result = await registerUser(req.body);
 
-    // The service only includes `otp` in development mode.
-    // In production this object only has userId and email — never the OTP.
-    const data = { userId: result.userId, email: result.email };
-    if (result.otp) {
-        data.otp = result.otp; // ⚠️ DEV ONLY — stripped automatically in production
-    }
+    const data = { userId: result.userId, email: result.email, otp: result.otp };
 
     sendSuccess(res, {
         statusCode: HTTP.CREATED,

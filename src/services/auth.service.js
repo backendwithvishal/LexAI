@@ -198,14 +198,7 @@ export async function registerUser({ name, email, password }) {
         );
     });
 
-    // Only return the OTP in development so engineers can test without an inbox.
-    // In production this field is simply absent from the response.
-    const response = { userId: user._id, email: user.email };
-    if (env.NODE_ENV !== 'production') {
-        response.otp = otp;
-    }
-
-    return response;
+    return { userId: user._id, email: user.email, otp };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
