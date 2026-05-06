@@ -31,8 +31,8 @@ async function startServer() {
         // 3. Connect to RabbitMQ
         await connectRabbitMQ(env.RABBITMQ_URL);
 
-        // 4. Initialize email transporter
-        initEmailTransporter();
+        // 4. Initialize email transporter (verifies SMTP connection)
+        await initEmailTransporter();
 
         // 5. Create Express app
         const app = createApp();

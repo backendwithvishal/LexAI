@@ -37,22 +37,17 @@ let transporter = null;
  * in server.js.
  */
 function _initTransporter() {
-  // Prefer SMTP_USER/SMTP_PASS (canonical names); fall back to MAIL_USER/MAIL_PASS
-  // for backwards compatibility with existing .env files.
-  const smtpUser = env.SMTP_USER || env.MAIL_USER;
-  const smtpPass = env.SMTP_PASS || env.MAIL_PASS;
-
   transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,     // smtp.gmail.com
-    port: env.SMTP_PORT,     // 587
-    secure: env.SMTP_SECURE, // true = TLS (port 465), false = STARTTLS (port 587)
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: {
-      user: smtpUser,        // Gmail address
-      pass: smtpPass,        // Gmail App Password
+      user: env.SMTP_USER || env.MAIL_USER,
+      pass: env.SMTP_PASS || env.MAIL_PASS,
     },
   });
 
-  logger.info(`Email transporter ready (${env.SMTP_HOST}:${env.SMTP_PORT})`);
+  logger.info(`Email transporter initialised (smtp.gmail.com:587)`);
 }
 
 /**
@@ -63,12 +58,25 @@ function _initTransporter() {
  * It is safe to call this multiple times — if a transporter is
  * already initialised it returns immediately without recreating it.
  */
-export function initEmailTransporter() {
+export async function initEmailTransporter() {
   if (transporter) {
     logger.debug('Email transporter already initialised — skipping');
     return;
   }
   _initTransporter();
+
+  // Verify the SMTP connection at startup so we get a clear error immediately
+  // instead of a silent failure the first time an email is actually sent.
+  try {
+    await transporter.verify();
+    logger.info('SMTP connection verified — email is ready to send');
+  } catch (err) {
+    logger.error(
+      { err: err.message, code: err.code, host: env.SMTP_HOST, port: env.SMTP_PORT, user: env.SMTP_USER || env.MAIL_USER },
+      '❌ SMTP connection failed — emails will not be sent. Check SMTP_USER, SMTP_PASS, and Gmail App Password settings.'
+    );
+    // Do NOT exit — the app can still run, emails just won't work
+  }
 }
 
 /**
@@ -84,16 +92,24 @@ export function initEmailTransporter() {
 async function _sendEmail({ to, subject, html, text }) {
   if (!transporter) _initTransporter();
 
-  const info = await transporter.sendMail({
-    from: `"LexAI" <${env.EMAIL_FROM}>`,
-    to,
-    subject,
-    html,
-    text,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from: `"LexAI" <${env.EMAIL_FROM}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
 
-  logger.debug({ to, subject, messageId: info.messageId }, 'Email sent');
-  return info;
+    logger.debug({ to, subject, messageId: info.messageId }, 'Email sent');
+    return info;
+  } catch (err) {
+    logger.error(
+      { to, subject, code: err.code, message: err.message, responseCode: err.responseCode },
+      '❌ Failed to send email'
+    );
+    throw err;
+  }
 }
 
 /**
