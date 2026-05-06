@@ -37,17 +37,22 @@ let transporter = null;
  * in server.js.
  */
 function _initTransporter() {
+  // Prefer SMTP_USER/SMTP_PASS (canonical names); fall back to MAIL_USER/MAIL_PASS
+  // for backwards compatibility with existing .env files.
+  const smtpUser = env.SMTP_USER || env.MAIL_USER;
+  const smtpPass = env.SMTP_PASS || env.MAIL_PASS;
+
   transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,   // smtp.gmail.com
-    port: env.SMTP_PORT,   // 587
-    secure: false,            // false = STARTTLS (upgrades from plain to encrypted)
+    host: env.SMTP_HOST,     // smtp.gmail.com
+    port: env.SMTP_PORT,     // 587
+    secure: env.SMTP_SECURE, // true = TLS (port 465), false = STARTTLS (port 587)
     auth: {
-      user: env.MAIL_USER, // Gmail address (from MAIL_USER in .env)
-      pass: env.MAIL_PASS, // Gmail App Password (from MAIL_PASS in .env)
+      user: smtpUser,        // Gmail address
+      pass: smtpPass,        // Gmail App Password
     },
   });
 
-  logger.info('Email transporter ready (Gmail SMTP)');
+  logger.info(`Email transporter ready (${env.SMTP_HOST}:${env.SMTP_PORT})`);
 }
 
 /**

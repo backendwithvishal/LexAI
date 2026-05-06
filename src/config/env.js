@@ -89,12 +89,13 @@ const envSchema = z.object({
   SMTP_HOST: z.string().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_SECURE: z.string().transform((v) => v === 'true').default('false'),
+  // Canonical SMTP credentials — set these in your .env
   SMTP_USER: z.string().default(''),
   SMTP_PASS: z.string().default(''),
   EMAIL_FROM: z.string().default('noreply@lexai.io'),
-  // Gmail credentials — used directly by the nodemailer transporter
-  MAIL_USER: z.string().min(1, 'MAIL_USER (Gmail address) is required'),
-  MAIL_PASS: z.string().min(1, 'MAIL_PASS (Gmail App Password) is required'),
+  // Legacy aliases — kept for backwards compatibility; SMTP_USER/SMTP_PASS take precedence
+  MAIL_USER: z.string().default(''),
+  MAIL_PASS: z.string().default(''),
 
   // ─── Redis Token TTLs ─────────────────────────────────────
   // How long password reset tokens live in Redis (seconds)
@@ -128,6 +129,17 @@ if (!parsed.success) {
 
 // Freeze the config to prevent accidental mutation anywhere in the app
 const env = Object.freeze(parsed.data);
+
+// ─── Email credential check ────────────────────────────────────────────────
+// Ensure at least one SMTP credential pair is configured so emails don't
+// silently fail at runtime. SMTP_USER/SMTP_PASS are preferred; MAIL_USER/MAIL_PASS
+// are accepted as legacy aliases.
+const emailUser = parsed.data.SMTP_USER || parsed.data.MAIL_USER;
+const emailPass = parsed.data.SMTP_PASS || parsed.data.MAIL_PASS;
+if (!emailUser || !emailPass) {
+  console.error('❌ Email configuration missing: set SMTP_USER and SMTP_PASS (or MAIL_USER and MAIL_PASS) in your .env file.');
+  process.exit(1);
+}
 
 // ─── Production Safety Checks ─────────────────────────────────────────────
 // Fail fast if placeholder secrets are used in production
