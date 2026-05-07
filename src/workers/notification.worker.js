@@ -45,9 +45,34 @@ export async function startNotificationWorker() {
 
 /**
  * Process a notification event based on its type.
+ * Creates a Notification document and pushes a Socket.IO event to the user.
  */
 async function processNotificationEvent(eventType, payload, timestamp) {
-    logger.warn(`Notification worker: unhandled event type: ${eventType}`);
+    const { userId, orgId, title, message, type, metadata } = payload;
+
+    if (!userId && !orgId) {
+        logger.warn(`Notification worker: missing userId/orgId for event: ${eventType}`);
+        return;
+    }
+
+    // Persist the notification to MongoDB
+    const notification = await Notification.create({
+        userId,
+        orgId,
+        type: type || eventType,
+        title: title || eventType,
+        message: message || '',
+        metadata: metadata || {},
+        read: false,
+        createdAt: timestamp ? new Date(timestamp) : new Date(),
+    });
+
+    // Push to the user's Socket.IO room via Redis Pub/Sub
+    if (userId) {
+        await publishToSocket(notification);
+    }
+
+    logger.debug(`Notification created and emitted: ${eventType}`, { notificationId: notification._id, userId });
 }
 
 /**

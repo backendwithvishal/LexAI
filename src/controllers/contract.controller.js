@@ -8,6 +8,7 @@
 
 import * as contractService from '../services/contract.service.js';
 import * as auditService from '../services/audit.service.js';
+import { emitContractUploaded, emitContractUpdated, emitContractDeleted } from '../services/socketEmitter.service.js';
 import { sendSuccess } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 import AppError from '../utils/AppError.js';
@@ -50,6 +51,14 @@ export async function uploadContract(req, res) {
             },
         },
     });
+
+    // Broadcast to org members so their contract lists refresh in real-time
+    emitContractUploaded(orgId, {
+        contractId: contract._id,
+        title: contract.title,
+        type: contract.type,
+        uploadedBy: req.user.userId,
+    });
 }
 
 /** GET /contracts — list with pagination, filtering, and full-text search */
@@ -72,6 +81,14 @@ export async function updateContract(req, res) {
     const { orgId } = req;
     // Service only allows safe fields — content changes go through addVersion
     const contract = await contractService.updateContract(req.params.id, orgId, req.body);
+
+    emitContractUpdated(orgId, {
+        contractId: contract._id,
+        title: contract.title,
+        updatedBy: req.user.userId,
+        changes: Object.keys(req.body),
+    });
+
     sendSuccess(res, { data: { contract } });
 }
 
@@ -93,7 +110,14 @@ export async function getVersions(req, res) {
 export async function deleteContract(req, res) {
     const { orgId } = req;
     // Soft delete sets isDeleted=true — the document is never actually removed from MongoDB
-    await contractService.deleteContract(req.params.id, orgId, req.user.userId);
+    const contract = await contractService.deleteContract(req.params.id, orgId, req.user.userId);
+
+    emitContractDeleted(orgId, {
+        contractId: req.params.id,
+        title: contract?.title,
+        deletedBy: req.user.userId,
+    });
+
     sendSuccess(res, { message: 'Contract deleted successfully.' });
 }
 

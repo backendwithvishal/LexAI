@@ -110,7 +110,7 @@ async function processAnalysisJob(job, channel, msg) {
                 throw new Error(`Failed to update analysis document ${analysisId} from cache`);
             }
 
-            await publishSocketEvent(redis, orgId, contractId, analysisId, cachedResult.riskScore, cachedResult.riskLevel);
+            await publishSocketEvent(redis, orgId, contractId, analysisId, cachedResult.riskScore, cachedResult.riskLevel, job.userId);
             channel.ack(msg);
             return;
         }
@@ -176,8 +176,7 @@ async function processAnalysisJob(job, channel, msg) {
         };
         await redis.set(`analysis:${contentHash}`, JSON.stringify(cachePayload), 'EX', CACHE_TTL);
 
-        // Publish Socket.io event via Redis Pub/Sub
-        await publishSocketEvent(redis, orgId, contractId, analysisId, result.riskScore, result.riskLevel);
+        await publishSocketEvent(redis, orgId, contractId, analysisId, result.riskScore, result.riskLevel, job.userId);
         await redis.del(`lock:analysis:${contentHash}`);
 
         logger.info(`Analysis completed in ${Date.now() - startTime}ms`, { jobId, riskScore: result.riskScore });
@@ -211,8 +210,8 @@ async function processAnalysisJob(job, channel, msg) {
 
             await redis.publish(PUBSUB_CHANNEL, JSON.stringify({
                 event: 'analysis:failed',
-                room: `org:${orgId}`,
-                payload: { contractId, reason: err.message },
+                room: `user:${job.userId || orgId}`,  // Personal room — only the requester sees the failure
+                payload: { contractId, analysisId, reason: err.message },
             }));
 
             await redis.del(`lock:analysis:${contentHash}`);
@@ -223,16 +222,18 @@ async function processAnalysisJob(job, channel, msg) {
 
 /** Process a diff comparison job. */
 async function processDiffJob(job, channel, msg) {
-    const { jobId, contractId, orgId, contractTitle, diffText, versionA, versionB } = job;
+    const { jobId, contractId, orgId, userId, contractTitle, diffText, versionA, versionB } = job;
 
     try {
         logger.info(`Processing diff job: ${jobId}`, { contractId, versionA, versionB });
         const result = await aiService.explainDiff(diffText, contractTitle);
         const redis = getRedisClient();
 
+        // Emit to the requesting user's personal room — diff was requested by a specific user
+        const room = userId ? `user:${userId}` : `org:${orgId}`;
         await redis.publish(PUBSUB_CHANNEL, JSON.stringify({
             event: 'diff:complete',
-            room: `org:${orgId}`,
+            room,
             payload: { contractId, versionA, versionB, ...result },
         }));
 
@@ -240,15 +241,27 @@ async function processDiffJob(job, channel, msg) {
         channel.ack(msg);
     } catch (err) {
         logger.error(`Diff job failed: ${err.message}`, { jobId });
+
+        // Notify the user their diff failed
+        const redis = getRedisClient();
+        const room = job.userId ? `user:${job.userId}` : `org:${orgId}`;
+        await redis.publish(PUBSUB_CHANNEL, JSON.stringify({
+            event: 'diff:failed',
+            room,
+            payload: { contractId, versionA, versionB, error: err.message },
+        })).catch(() => {}); // Non-fatal
+
         channel.nack(msg, false, false);
     }
 }
 
 /** Publish a completion event to Redis Pub/Sub. */
-async function publishSocketEvent(redis, orgId, contractId, analysisId, riskScore, riskLevel) {
+async function publishSocketEvent(redis, orgId, contractId, analysisId, riskScore, riskLevel, userId) {
+    // Emit to the requesting user's personal room — only they need to know their job is done
+    const room = userId ? `user:${userId}` : `org:${orgId}`;
     await redis.publish(PUBSUB_CHANNEL, JSON.stringify({
         event: 'analysis:complete',
-        room: `org:${orgId}`,
+        room,
         payload: { contractId, analysisId, riskScore, riskLevel },
     }));
 }

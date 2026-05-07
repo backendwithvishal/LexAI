@@ -7,6 +7,7 @@
 
 import * as commentService from '../services/comment.service.js';
 import * as auditService from '../services/audit.service.js';
+import { emitCommentCreated, emitCommentUpdated, emitCommentDeleted } from '../services/socketEmitter.service.js';
 import { sendSuccess } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 
@@ -30,6 +31,15 @@ export async function createComment(req, res) {
         ipAddress: req.ip,
     });
 
+    // Broadcast to all org members viewing the same contract in real-time
+    emitCommentCreated(orgId, {
+        commentId: comment._id,
+        contractId: req.params.contractId,
+        userId: req.user.userId,
+        content: comment.content,
+        createdAt: comment.createdAt,
+    });
+
     sendSuccess(res, { statusCode: HTTP.CREATED, message: 'Comment added.', data: { comment } });
 }
 
@@ -49,6 +59,15 @@ export async function updateComment(req, res) {
         req.user.userId,
         req.body.content
     );
+
+    emitCommentUpdated(orgId, {
+        commentId: comment._id,
+        contractId: req.params.contractId,
+        userId: req.user.userId,
+        content: comment.content,
+        updatedAt: comment.updatedAt,
+    });
+
     sendSuccess(res, { message: 'Comment updated.', data: { comment } });
 }
 
@@ -61,5 +80,12 @@ export async function deleteComment(req, res) {
         req.user.userId,
         req.user.role
     );
+
+    emitCommentDeleted(orgId, {
+        commentId: req.params.commentId,
+        contractId: req.params.contractId,
+        deletedBy: req.user.userId,
+    });
+
     sendSuccess(res, { message: 'Comment deleted.' });
 }

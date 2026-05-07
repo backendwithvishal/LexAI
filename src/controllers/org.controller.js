@@ -8,6 +8,7 @@
 
 import * as orgService from '../services/org.service.js';
 import * as invitationService from '../services/invitation.service.js';
+import { emitMemberInvited, emitMemberJoined, emitMemberRemoved, emitMemberRoleChanged } from '../services/socketEmitter.service.js';
 import { sendSuccess } from '../utils/apiResponse.js';
 import HTTP from '../constants/httpStatus.js';
 import * as auditService from '../services/audit.service.js';
@@ -63,6 +64,14 @@ export async function inviteMember(req, res) {
         ipAddress: req.ip,
     });
 
+    // Notify org members in real-time that a new invitation was sent
+    emitMemberInvited(req.params.orgId, {
+        email: req.body.email,
+        role: req.body.role,
+        invitedBy: req.user.userId,
+        invitationId: invitation._id,
+    });
+
     sendSuccess(res, {
         message: `Invitation sent to ${req.body.email}`,
         data: { invitationId: invitation._id, expiresAt: invitation.expiresAt },
@@ -72,6 +81,15 @@ export async function inviteMember(req, res) {
 /** POST /orgs/:orgId/invite/accept — accept an invitation (creates account if new user) */
 export async function acceptInvite(req, res) {
     const result = await invitationService.acceptInvitation(req.params.orgId, req.body);
+
+    // Broadcast to the org that a new member has joined
+    emitMemberJoined(req.params.orgId, {
+        userId: result.user?.id,
+        name: result.user?.name,
+        email: result.user?.email,
+        role: result.user?.role,
+    });
+
     sendSuccess(res, { message: 'Invitation accepted. Your account has been created.', data: result });
 }
 
@@ -79,6 +97,13 @@ export async function acceptInvite(req, res) {
 export async function changeMemberRole(req, res) {
     // Service prevents admins from changing their own role
     await orgService.changeMemberRole(req.params.orgId, req.params.userId, req.body.role, req.user.userId);
+
+    emitMemberRoleChanged(req.params.orgId, {
+        userId: req.params.userId,
+        newRole: req.body.role,
+        changedBy: req.user.userId,
+    });
+
     sendSuccess(res, { message: 'Member role updated successfully.' });
 }
 
@@ -93,6 +118,11 @@ export async function removeMember(req, res) {
         resourceType: 'User',
         resourceId: req.params.userId,
         ipAddress: req.ip,
+    });
+
+    emitMemberRemoved(req.params.orgId, {
+        userId: req.params.userId,
+        removedBy: req.user.userId,
     });
 
     sendSuccess(res, { message: 'Member removed from organization.' });

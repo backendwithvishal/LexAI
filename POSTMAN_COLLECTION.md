@@ -2043,3 +2043,579 @@ Follow this sequence to test all APIs end-to-end:
   }
 }
 ```
+
+---
+
+## 22. WebSocket API — Socket.io
+
+> **Connection URL:** `ws://localhost:3500`
+> **Library:** Socket.io v4 (use the `socket.io-client` package or Postman's WebSocket tab)
+> **Transport:** WebSocket (falls back to HTTP long-polling)
+
+Socket.io is used for all real-time push events. The server never polls — it pushes events to connected clients as things happen.
+
+---
+
+### Connection & Authentication
+
+Authentication uses the same PASETO access token as the REST API. Pass it in the `auth` object during the handshake:
+
+**JavaScript (socket.io-client):**
+```js
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:3500', {
+  auth: { token: '{{access_token}}' },   // or 'Bearer {{access_token}}'
+  transports: ['websocket'],
+});
+
+socket.on('connect', () => console.log('Connected:', socket.id));
+socket.on('connect_error', (err) => console.error('Auth failed:', err.message));
+```
+
+**Postman WebSocket tab:**
+```
+URL: ws://localhost:3500/socket.io/?EIO=4&transport=websocket
+```
+Add header: `Authorization: Bearer {{access_token}}`
+
+On successful connection the server automatically joins the socket to `user:<userId>`. If the user is an admin, they are also joined to the `admin` room.
+
+---
+
+### Room Architecture
+
+| Room | Who joins | Used for |
+|---|---|---|
+| `user:<userId>` | Auto on connect | Personal events (analysis, diff, quota, notifications) |
+| `org:<orgId>` | Client sends `join:org` | Org-wide events (contracts, comments, membership) |
+| `admin` | Auto for admin role | Platform-wide admin events |
+
+---
+
+### Client → Server Events
+
+#### `join:org`
+
+Join the org room to receive org-wide broadcasts. You can only join your own org (cross-org is blocked server-side).
+
+```js
+socket.emit('join:org', { orgId: '{{org_id}}' });
+```
+
+**Error response (if unauthorized):**
+```json
+{ "message": "You can only join your own organization room." }
+```
+
+---
+
+### Server → Client Events
+
+All events follow the shape: `socket.on('<event>', (payload) => { ... })`
+
+---
+
+#### Analysis Events — room: `user:<userId>`
+
+##### `analysis:complete`
+Fired when an AI analysis job finishes successfully.
+
+```js
+socket.on('analysis:complete', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "analysisId": "65f1a2b3c4d5e6f7a8b9c0d5",
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "status": "completed",
+  "riskScore": 7.2,
+  "summary": "This NDA contains standard confidentiality clauses with moderate risk."
+}
+```
+
+##### `analysis:failed`
+Fired when an AI analysis job fails after all retries.
+
+```js
+socket.on('analysis:failed', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "analysisId": "65f1a2b3c4d5e6f7a8b9c0d5",
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "error": "AI provider unavailable after 3 retries"
+}
+```
+
+---
+
+#### Diff Events — room: `user:<userId>`
+
+##### `diff:complete`
+Fired when a version comparison + AI explanation is ready. Triggered after `POST /contracts/:id/compare`.
+
+```js
+socket.on('diff:complete', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "versionA": 1,
+  "versionB": 2,
+  "diffId": "65f1a2b3c4d5e6f7a8b9c0e9",
+  "summary": "Version 2 adds a penalty clause and updates the jurisdiction to India."
+}
+```
+
+##### `diff:failed`
+Fired when the diff AI explanation job fails.
+
+```js
+socket.on('diff:failed', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "versionA": 1,
+  "versionB": 2,
+  "error": "AI provider timeout"
+}
+```
+
+---
+
+#### Contract Events — room: `org:<orgId>`
+
+> Requires joining the org room first via `join:org`.
+
+##### `contract:uploaded`
+Fired when any org member uploads a new contract.
+
+```js
+socket.on('contract:uploaded', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "title": "Service Agreement 2026",
+  "type": "SaaS",
+  "uploadedBy": "65f1a2b3c4d5e6f7a8b9c0d1"
+}
+```
+
+##### `contract:updated`
+Fired when a contract's metadata is updated (title, tags, alertDays, etc.).
+
+```js
+socket.on('contract:updated', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "title": "Service Agreement 2026 (Revised)",
+  "updatedBy": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "changes": ["title", "tags"]
+}
+```
+
+##### `contract:deleted`
+Fired when a contract is soft-deleted.
+
+```js
+socket.on('contract:deleted', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "title": "Service Agreement 2026",
+  "deletedBy": "65f1a2b3c4d5e6f7a8b9c0d1"
+}
+```
+
+##### `contract:expiring`
+Fired by the expiry cron job when a contract is approaching its expiry date.
+
+```js
+socket.on('contract:expiring', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "title": "Vendor Agreement",
+  "expiresAt": "2026-06-01T00:00:00.000Z",
+  "daysRemaining": 25
+}
+```
+
+---
+
+#### Comment Events — room: `org:<orgId>`
+
+> Enables real-time collaborative annotation on contracts.
+
+##### `comment:created`
+
+```js
+socket.on('comment:created', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "commentId": "65f1a2b3c4d5e6f7a8b9c0e1",
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "content": "Section 3.2 seems overly broad.",
+  "createdAt": "2026-05-07T10:00:00.000Z"
+}
+```
+
+##### `comment:updated`
+
+```js
+socket.on('comment:updated', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "commentId": "65f1a2b3c4d5e6f7a8b9c0e1",
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "content": "Updated: Section 3.2 indemnification should be capped at contract value.",
+  "updatedAt": "2026-05-07T10:05:00.000Z"
+}
+```
+
+##### `comment:deleted`
+
+```js
+socket.on('comment:deleted', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "commentId": "65f1a2b3c4d5e6f7a8b9c0e1",
+  "contractId": "65f1a2b3c4d5e6f7a8b9c0d4",
+  "deletedBy": "65f1a2b3c4d5e6f7a8b9c0d1"
+}
+```
+
+---
+
+#### Membership Events — room: `org:<orgId>`
+
+##### `member:invited`
+Fired when an admin/manager sends an invitation.
+
+```js
+socket.on('member:invited', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "email": "newmember@example.com",
+  "role": "viewer",
+  "invitedBy": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "invitationId": "65f1a2b3c4d5e6f7a8b9c0f2"
+}
+```
+
+##### `member:joined`
+Fired when an invited user accepts and joins the org.
+
+```js
+socket.on('member:joined', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "userId": "65f1a2b3c4d5e6f7a8b9c0d8",
+  "name": "New Member",
+  "email": "newmember@example.com",
+  "role": "viewer"
+}
+```
+
+##### `member:removed`
+Fired when a member is removed from the org.
+
+```js
+socket.on('member:removed', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "userId": "65f1a2b3c4d5e6f7a8b9c0d8",
+  "removedBy": "65f1a2b3c4d5e6f7a8b9c0d1"
+}
+```
+
+##### `member:role_changed`
+Fired when an admin changes a member's role.
+
+```js
+socket.on('member:role_changed', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "userId": "65f1a2b3c4d5e6f7a8b9c0d8",
+  "newRole": "manager",
+  "changedBy": "65f1a2b3c4d5e6f7a8b9c0d1"
+}
+```
+
+---
+
+#### Bulk Operation Events — room: `user:<userId>`
+
+##### `bulk:complete`
+Fired when a bulk operation (add tags, remove tags, update type, delete) finishes.
+
+```js
+socket.on('bulk:complete', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "operation": "bulk_add_tags",
+  "modifiedCount": 5,
+  "contractIds": ["65f1a2b3c4d5e6f7a8b9c0d4", "65f1a2b3c4d5e6f7a8b9c0d9"]
+}
+```
+
+##### `bulk:failed`
+
+```js
+socket.on('bulk:failed', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "operation": "bulk_delete",
+  "error": "One or more contracts not found"
+}
+```
+
+---
+
+#### Quota Events — room: `user:<userId>`
+
+##### `quota:warning`
+Fired when a user approaches their plan's contract or analysis limit.
+
+```js
+socket.on('quota:warning', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "used": 9,
+  "limit": 10,
+  "percentage": 90,
+  "resourceType": "contracts"
+}
+```
+
+---
+
+#### Notification Events — room: `user:<userId>`
+
+##### `new_notification`
+Fired when a new in-app notification is created for the user.
+
+```js
+socket.on('new_notification', (notification) => {
+  console.log(notification);
+});
+```
+```json
+{
+  "_id": "65f1a2b3c4d5e6f7a8b9c0f3",
+  "type": "analysis_complete",
+  "title": "Analysis Ready",
+  "message": "Your analysis for 'Service Agreement 2026' is complete.",
+  "read": false,
+  "createdAt": "2026-05-07T10:00:00.000Z"
+}
+```
+
+---
+
+#### Admin Events — room: `admin`
+
+> Only received by users with `role: admin`.
+
+##### `admin:stats_updated`
+Fired periodically or after significant platform events to refresh the admin dashboard.
+
+```js
+socket.on('admin:stats_updated', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "totalUsers": 142,
+  "totalOrgs": 38,
+  "totalContracts": 1204,
+  "queueDepth": 3,
+  "analysesLast30Days": 87
+}
+```
+
+##### `admin:user_deactivated`
+Fired when an admin deactivates a user account.
+
+```js
+socket.on('admin:user_deactivated', (data) => {
+  console.log(data);
+});
+```
+```json
+{
+  "userId": "65f1a2b3c4d5e6f7a8b9c0d8",
+  "email": "user@example.com",
+  "deactivatedBy": "65f1a2b3c4d5e6f7a8b9c0d1"
+}
+```
+
+---
+
+### Complete Client Setup Example
+
+```js
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:3500', {
+  auth: { token: localStorage.getItem('access_token') },
+  transports: ['websocket'],
+  reconnectionAttempts: 5,
+  reconnectionDelay: 2000,
+});
+
+// ── Connection lifecycle ──────────────────────────────────────
+socket.on('connect', () => {
+  console.log('✅ Connected:', socket.id);
+
+  // Join org room for org-wide events
+  socket.emit('join:org', { orgId: MY_ORG_ID });
+});
+
+socket.on('disconnect', (reason) => console.warn('Disconnected:', reason));
+socket.on('connect_error', (err) => console.error('Connection error:', err.message));
+
+// ── Analysis ─────────────────────────────────────────────────
+socket.on('analysis:complete', ({ analysisId, riskScore, summary }) => {
+  showToast(`Analysis complete — Risk score: ${riskScore}`);
+  refreshAnalysisUI(analysisId);
+});
+
+socket.on('analysis:failed', ({ analysisId, error }) => {
+  showToast(`Analysis failed: ${error}`, 'error');
+});
+
+// ── Diff ─────────────────────────────────────────────────────
+socket.on('diff:complete', ({ diffId, summary }) => {
+  showToast('Version comparison ready');
+  openDiffPanel(diffId);
+});
+
+// ── Contracts ────────────────────────────────────────────────
+socket.on('contract:uploaded', ({ contractId, title }) => {
+  showToast(`New contract uploaded: ${title}`);
+  refreshContractList();
+});
+
+socket.on('contract:updated', ({ contractId, changes }) => {
+  refreshContract(contractId);
+});
+
+socket.on('contract:deleted', ({ contractId }) => {
+  removeContractFromUI(contractId);
+});
+
+socket.on('contract:expiring', ({ title, daysRemaining }) => {
+  showBanner(`⚠️ "${title}" expires in ${daysRemaining} days`);
+});
+
+// ── Comments ─────────────────────────────────────────────────
+socket.on('comment:created', (comment) => appendComment(comment));
+socket.on('comment:updated', (comment) => updateCommentInUI(comment));
+socket.on('comment:deleted', ({ commentId }) => removeCommentFromUI(commentId));
+
+// ── Membership ───────────────────────────────────────────────
+socket.on('member:joined', ({ name }) => showToast(`${name} joined the org`));
+socket.on('member:removed', ({ userId }) => removeUserFromMemberList(userId));
+socket.on('member:role_changed', ({ userId, newRole }) => updateMemberRole(userId, newRole));
+
+// ── Bulk ops ─────────────────────────────────────────────────
+socket.on('bulk:complete', ({ operation, modifiedCount }) => {
+  showToast(`${operation} completed — ${modifiedCount} contracts updated`);
+});
+
+// ── Quota ────────────────────────────────────────────────────
+socket.on('quota:warning', ({ percentage, resourceType }) => {
+  showBanner(`⚠️ You've used ${percentage}% of your ${resourceType} quota`);
+});
+
+// ── Notifications ────────────────────────────────────────────
+socket.on('new_notification', (notification) => {
+  incrementNotificationBadge();
+  showToast(notification.message);
+});
+```
+
+---
+
+### Event Summary Table
+
+| Event | Room | Triggered by |
+|---|---|---|
+| `analysis:complete` | `user:<userId>` | Worker finishes AI analysis |
+| `analysis:failed` | `user:<userId>` | Worker exhausts retries |
+| `diff:complete` | `user:<userId>` | Worker finishes diff AI explanation |
+| `diff:failed` | `user:<userId>` | Diff worker fails |
+| `contract:uploaded` | `org:<orgId>` | `POST /contracts` |
+| `contract:updated` | `org:<orgId>` | `PATCH /contracts/:id` |
+| `contract:deleted` | `org:<orgId>` | `DELETE /contracts/:id` |
+| `contract:expiring` | `org:<orgId>` | Expiry cron job |
+| `comment:created` | `org:<orgId>` | `POST /contracts/:id/comments` |
+| `comment:updated` | `org:<orgId>` | `PATCH /contracts/:id/comments/:id` |
+| `comment:deleted` | `org:<orgId>` | `DELETE /contracts/:id/comments/:id` |
+| `member:invited` | `org:<orgId>` | `POST /orgs/:id/invite` |
+| `member:joined` | `org:<orgId>` | `POST /orgs/:id/invite/accept` |
+| `member:removed` | `org:<orgId>` | `DELETE /orgs/:id/members/:userId` |
+| `member:role_changed` | `org:<orgId>` | `PATCH /orgs/:id/members/:userId/role` |
+| `bulk:complete` | `user:<userId>` | `POST /bulk/*` |
+| `bulk:failed` | `user:<userId>` | Bulk operation error |
+| `quota:warning` | `user:<userId>` | Quota service threshold check |
+| `new_notification` | `user:<userId>` | Notification worker |
+| `admin:stats_updated` | `admin` | Admin stats refresh |
+| `admin:user_deactivated` | `admin` | `DELETE /admin/users/:id` |

@@ -16,6 +16,7 @@ import { getChannel } from '../config/rabbitmq.js';
 import { QUEUES } from '../constants/queues.js';
 import * as auditService from '../services/audit.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
+import { emitAdminUserDeactivated, emitAdminStatsUpdated } from '../services/socketEmitter.service.js';
 import { sendSuccess, sendError, buildPaginationMeta } from '../utils/apiResponse.js';
 
 /** GET /admin/stats — platform-wide usage statistics */
@@ -49,11 +50,12 @@ export async function getStats(req, res) {
         }
     } catch { /* queue might not exist yet on first startup */ }
 
-    sendSuccess(res, {
-        data: {
-            stats: { totalUsers, totalOrgs, totalContracts, totalAnalyses, analysesLast30Days, averageRiskScore, queueDepth },
-        },
-    });
+    const stats = { totalUsers, totalOrgs, totalContracts, totalAnalyses, analysesLast30Days, averageRiskScore, queueDepth };
+
+    // Push live stats to all connected admins
+    emitAdminStatsUpdated(stats);
+
+    sendSuccess(res, { data: { stats } });
 }
 
 /** GET /admin/queue/status — RabbitMQ queue health check */
@@ -164,6 +166,13 @@ export async function deactivateUser(req, res) {
     if (!user) {
         return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'User not found.' });
     }
+
+    // Notify all admins that a user was deactivated
+    emitAdminUserDeactivated({
+        userId: user._id,
+        email: user.email,
+        deactivatedBy: req.user.userId,
+    });
 
     sendSuccess(res, { message: 'User deactivated successfully.' });
 }
