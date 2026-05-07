@@ -352,6 +352,11 @@ export async function loginUser({ email, password }) {
         await _storeRefreshToken(user._id, refresh.jti, decodedRefresh.exp);
     }
 
+    // Seed the role cache so the authenticate middleware doesn't hit the DB on the first request
+    // TTL matches the access token expiry (15m default)
+    const accessTTL = 15 * 60; // 15 minutes in seconds (matches PASETO_ACCESS_EXPIRY default)
+    await redis.set(REDIS_KEY.userRole(user._id.toString()), user.role, 'EX', accessTTL);
+
     // Record last login time (non-blocking save)
     user.lastLoginAt = new Date();
     await user.save();
@@ -417,6 +422,10 @@ export async function refreshAccessToken(refreshTokenStr) {
     if (decodedNew && decodedNew.exp) {
         await _storeRefreshToken(user._id, newRefresh.jti, decodedNew.exp);
     }
+
+    // Refresh the role cache with the latest role from DB
+    const accessTTL = 15 * 60;
+    await redis.set(REDIS_KEY.userRole(user._id.toString()), user.role, 'EX', accessTTL);
 
     return { accessToken: newAccess.token, refreshToken: newRefresh.token };
 }

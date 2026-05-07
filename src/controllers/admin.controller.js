@@ -17,6 +17,8 @@ import { QUEUES } from '../constants/queues.js';
 import * as auditService from '../services/audit.service.js';
 import { revokeAllRefreshTokens } from '../services/auth.service.js';
 import { emitAdminUserDeactivated, emitAdminStatsUpdated } from '../services/socketEmitter.service.js';
+import { getRedisClient } from '../config/redis.js';
+import { REDIS_KEYS } from '../constants/redisKeys.js';
 import { sendSuccess, sendError, buildPaginationMeta } from '../utils/apiResponse.js';
 
 /** GET /admin/stats — platform-wide usage statistics */
@@ -152,6 +154,13 @@ export async function updateUser(req, res) {
         return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'User not found.' });
     }
 
+    // If the role was changed, invalidate the role cache so the new role
+    // takes effect on the user's very next request
+    if (updates.role) {
+        const redis = getRedisClient();
+        await redis.del(REDIS_KEYS.userRole(req.params.id));
+    }
+
     sendSuccess(res, { message: 'User updated successfully.', data: { user } });
 }
 
@@ -166,6 +175,11 @@ export async function deactivateUser(req, res) {
     if (!user) {
         return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'User not found.' });
     }
+
+    // Invalidate the role cache — the authenticate middleware will hit the DB,
+    // see isActive=false, and reject the user's next request immediately
+    const redis = getRedisClient();
+    await redis.del(REDIS_KEYS.userRole(req.params.id));
 
     // Notify all admins that a user was deactivated
     emitAdminUserDeactivated({
@@ -220,6 +234,9 @@ export async function deleteOrganization(req, res) {
         return sendError(res, { statusCode: 404, code: 'NOT_FOUND', message: 'Organization not found.' });
     }
 
+    // Collect member IDs before deletion so we can invalidate their role caches
+    const memberIds = org.members.map((m) => m.userId.toString());
+
     // Cascade: soft-delete contracts, hard-delete analyses, clear user memberships — run in parallel
     await Promise.all([
         Contract.updateMany({ orgId: id }, { isDeleted: true, deletedAt: new Date() }),
@@ -229,6 +246,16 @@ export async function deleteOrganization(req, res) {
 
     // Delete the org itself last (after cascade is complete)
     await Organization.findByIdAndDelete(id);
+
+    // Invalidate role cache for all former members — their role changed to viewer
+    if (memberIds.length > 0) {
+        const redis = getRedisClient();
+        const pipeline = redis.pipeline();
+        for (const userId of memberIds) {
+            pipeline.del(REDIS_KEYS.userRole(userId));
+        }
+        await pipeline.exec();
+    }
 
     await auditService.log({
         userId: req.user.userId,

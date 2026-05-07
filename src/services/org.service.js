@@ -14,6 +14,8 @@
 import Organization from '../models/Organization.model.js';
 import User from '../models/User.model.js';
 import { getPlanLimits } from '../constants/plans.js';
+import { getRedisClient } from '../config/redis.js';
+import { REDIS_KEYS } from '../constants/redisKeys.js';
 import AppError from '../utils/AppError.js';
 
 /**
@@ -133,6 +135,11 @@ export async function changeMemberRole(orgId, targetUserId, newRole, requesterId
 
     await User.findByIdAndUpdate(targetUserId, { role: newRole });
 
+    // Invalidate the role cache so the change takes effect on the user's
+    // very next request — without waiting for the cache TTL to expire
+    const redis = getRedisClient();
+    await redis.del(REDIS_KEYS.userRole(targetUserId.toString()));
+
     return org;
 }
 
@@ -157,6 +164,10 @@ export async function removeMember(orgId, targetUserId, requesterId) {
 
     // Clear the user's org reference and reset role to viewer
     await User.findByIdAndUpdate(targetUserId, { organization: null, role: 'viewer' });
+
+    // Invalidate the role cache — the user's next request will pick up the new viewer role
+    const redis = getRedisClient();
+    await redis.del(REDIS_KEYS.userRole(targetUserId.toString()));
 
     return org;
 }

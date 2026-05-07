@@ -14,6 +14,8 @@ import { v4 as uuidv4 } from 'uuid';
 import Invitation from '../models/Invitation.model.js';
 import User from '../models/User.model.js';
 import Organization from '../models/Organization.model.js';
+import { getRedisClient } from '../config/redis.js';
+import { REDIS_KEYS } from '../constants/redisKeys.js';
 import * as emailService from './email.service.js';
 import * as orgService from './org.service.js';
 import logger from '../utils/logger.js';
@@ -118,6 +120,10 @@ export async function acceptInvitation(orgId, { token, name, password }) {
         user.organization = orgId;
         user.role = invitation.role;
         await user.save();
+
+        // Invalidate the role cache — the user's next request will pick up the new role
+        const redis = getRedisClient();
+        await redis.del(REDIS_KEYS.userRole(user._id.toString()));
     }
 
     // Add the user to the org's members array

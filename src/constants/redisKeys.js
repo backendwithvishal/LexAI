@@ -17,6 +17,11 @@ export const REDIS_KEYS = {
     refreshToken:    (jti)       => `refreshToken:${jti}`,
     userRefreshSet:  (userId)    => `refreshTokens:${userId}`,
 
+    // User role cache — stores the live role so role changes take effect
+    // immediately without waiting for the access token to expire.
+    // TTL matches the access token expiry (15m default).
+    userRole:        (userId)    => `userRole:${userId}`,
+
     // Analysis
     analysis:        (hash)      => `analysis:${hash}`,
     lockAnalysis:    (hash)      => `lock:analysis:${hash}`,
