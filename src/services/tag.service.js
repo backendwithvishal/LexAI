@@ -61,7 +61,7 @@ export async function renameTag(orgId, oldTag, newTag) {
 
     // Re-run on the originally matched set to add the new tag
     // This is a two-step because $rename doesn't work on array elements
-    const result = await Contract.updateMany(
+    await Contract.updateMany(
         { orgId, isDeleted: false },
         { $addToSet: { tags: normalizedNew } }
     );

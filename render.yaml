@@ -1,0 +1,299 @@
+## LexAI — Render Blueprint
+## Docs: https://render.com/docs/blueprint-spec
+##
+## Services defined here:
+##   1. lexai-api        — Express API (Web Service, Docker)
+##   2. lexai-worker     — RabbitMQ consumer (Background Worker, Docker)
+##   3. lexai-rabbitmq   — RabbitMQ broker (Private Service, Docker)
+##   4. lexai-redis      — Managed Redis (Render add-on)
+##
+## Before deploying:
+##   - Push this repo to GitHub and connect it to Render
+##   - Set all secret env vars in the Render dashboard (marked sync: false below)
+##   - Create a MongoDB Atlas cluster and set MONGO_URI
+##   - Run the Render Blueprint from: https://dashboard.render.com/blueprints
+
+services:
+  # ─── 1. API Web Service ────────────────────────────────────────
+  - type: web
+    name: lexai-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: node server.js
+    plan: starter          # upgrade to standard/pro for production
+    region: oregon         # change to match your users' region
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # ── App ──
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3100
+      - key: API_VERSION
+        value: v1
+
+      # ── MongoDB Atlas (set in dashboard) ──
+      - key: MONGO_URI
+        sync: false        # set this secret in the Render dashboard
+
+      # ── Redis (from Render managed Redis) ──
+      - key: REDIS_HOST
+        fromService:
+          name: lexai-redis
+          type: redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: lexai-redis
+          type: redis
+          property: port
+      - key: REDIS_PASSWORD
+        fromService:
+          name: lexai-redis
+          type: redis
+          property: password
+
+      # ── RabbitMQ (from private service) ──
+      - key: RABBITMQ_URL
+        fromService:
+          name: lexai-rabbitmq
+          type: pserv
+          envVarKey: RABBITMQ_URL
+      - key: ANALYSIS_QUEUE
+        value: lexai.analysis.queue
+      - key: ALERT_QUEUE
+        value: lexai.alert.queue
+      - key: DLX_EXCHANGE
+        value: lexai.dlx
+      - key: NOTIFICATION_QUEUE
+        value: lexai.notification.queue
+      - key: ANALYTICS_EVENTS_QUEUE
+        value: lexai.analytics.queue
+      - key: ORDER_QUEUE
+        value: lexai.order.queue
+      - key: REVIEW_QUEUE
+        value: lexai.review.queue
+
+      # ── PASETO (set in dashboard) ──
+      - key: PASETO_LOCAL_SECRET
+        sync: false
+      - key: PASETO_ACCESS_EXPIRY
+        value: 15m
+      - key: PASETO_REFRESH_EXPIRY
+        value: 7d
+      - key: PASETO_REFRESH_COOKIE_MAX_AGE_MS
+        value: 604800000
+
+      # ── AI Provider (set in dashboard) ──
+      - key: AI_PROVIDER
+        value: groq
+      - key: AI_PRIMARY_MODEL
+        value: llama-3.3-70b-versatile
+      - key: AI_FALLBACK_MODEL
+        value: llama-3.1-8b-instant
+      - key: AI_DIFF_MODEL
+        value: llama-3.1-8b-instant
+      - key: AI_REQUEST_TIMEOUT_MS
+        value: 60000
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+
+      # ── Rate Limiting ──
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MAX
+        value: 100
+
+      # ── File Upload ──
+      - key: MAX_FILE_SIZE_MB
+        value: 5
+      - key: ALLOWED_MIME_TYPES
+        value: application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain
+
+      # ── CORS — update with your frontend URL ──
+      - key: ALLOWED_ORIGINS
+        value: https://your-frontend.onrender.com
+
+      # ── Email (set in dashboard) ──
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_SECURE
+        value: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: noreply@lexai.io
+
+      # ── External APIs (optional, set in dashboard if needed) ──
+      - key: REST_COUNTRIES_URL
+        value: https://restcountries.com/v3.1
+      - key: WORLD_TIME_API_URL
+        value: https://worldtimeapi.org/api
+      - key: IPINFO_TOKEN
+        sync: false
+      - key: HIBP_API_KEY
+        sync: false
+
+      # ── Redis Token TTLs ──
+      - key: EMAIL_VERIFICATION_EXPIRY
+        value: 86400
+      - key: PASSWORD_RESET_EXPIRY
+        value: 3600
+      - key: OTP_EXPIRY
+        value: 600
+
+  # ─── 2. Worker Background Service ─────────────────────────────
+  - type: worker
+    name: lexai-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile.worker
+    dockerContext: .
+    dockerCommand: node worker.js
+    plan: starter
+    region: oregon
+    branch: main
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # ── MongoDB Atlas ──
+      - key: MONGO_URI
+        sync: false
+
+      # ── Redis ──
+      - key: REDIS_HOST
+        fromService:
+          name: lexai-redis
+          type: redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: lexai-redis
+          type: redis
+          property: port
+      - key: REDIS_PASSWORD
+        fromService:
+          name: lexai-redis
+          type: redis
+          property: password
+
+      # ── RabbitMQ ──
+      - key: RABBITMQ_URL
+        fromService:
+          name: lexai-rabbitmq
+          type: pserv
+          envVarKey: RABBITMQ_URL
+      - key: ANALYSIS_QUEUE
+        value: lexai.analysis.queue
+      - key: ALERT_QUEUE
+        value: lexai.alert.queue
+      - key: DLX_EXCHANGE
+        value: lexai.dlx
+      - key: NOTIFICATION_QUEUE
+        value: lexai.notification.queue
+      - key: ANALYTICS_EVENTS_QUEUE
+        value: lexai.analytics.queue
+      - key: ORDER_QUEUE
+        value: lexai.order.queue
+      - key: REVIEW_QUEUE
+        value: lexai.review.queue
+
+      # ── PASETO ──
+      - key: PASETO_LOCAL_SECRET
+        sync: false
+      - key: PASETO_ACCESS_EXPIRY
+        value: 15m
+      - key: PASETO_REFRESH_EXPIRY
+        value: 7d
+
+      # ── AI Provider ──
+      - key: AI_PROVIDER
+        value: groq
+      - key: AI_PRIMARY_MODEL
+        value: llama-3.3-70b-versatile
+      - key: AI_FALLBACK_MODEL
+        value: llama-3.1-8b-instant
+      - key: AI_DIFF_MODEL
+        value: llama-3.1-8b-instant
+      - key: AI_REQUEST_TIMEOUT_MS
+        value: 60000
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+
+      # ── Email ──
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_SECURE
+        value: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: noreply@lexai.io
+
+      # ── Redis Token TTLs ──
+      - key: EMAIL_VERIFICATION_EXPIRY
+        value: 86400
+      - key: PASSWORD_RESET_EXPIRY
+        value: 3600
+      - key: OTP_EXPIRY
+        value: 600
+
+  # ─── 3. RabbitMQ Private Service ──────────────────────────────
+  # Render doesn't offer managed RabbitMQ, so we run it as a private Docker service.
+  # It is NOT exposed to the internet — only reachable by other services in this Blueprint.
+  - type: pserv
+    name: lexai-rabbitmq
+    runtime: docker
+    dockerfilePath: ./docker/rabbitmq/Dockerfile
+    plan: starter
+    region: oregon
+    branch: main
+    autoDeploy: false      # RabbitMQ rarely needs redeployment
+
+    disk:
+      name: rabbitmq-data
+      mountPath: /var/lib/rabbitmq
+      sizeGB: 1
+
+    envVars:
+      - key: RABBITMQ_DEFAULT_USER
+        value: lexai
+      - key: RABBITMQ_DEFAULT_PASS
+        sync: false        # set a strong password in the Render dashboard
+      # Internal connection URL — consumed by api and worker via fromService above
+      - key: RABBITMQ_URL
+        value: amqp://lexai:$(RABBITMQ_DEFAULT_PASS)@localhost:5672
+
+# ─── 4. Managed Redis ─────────────────────────────────────────
+databases:
+  - name: lexai-redis
+    type: redis
+    plan: starter          # upgrade to standard for persistence + HA
+    region: oregon
+    ipAllowList: []        # empty = only internal Render services can connect

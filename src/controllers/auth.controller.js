@@ -52,7 +52,10 @@ export async function register(req, res) {
 
     const result = await registerUser(req.body);
 
-    const data = { userId: result.userId, email: result.email };
+    // Always include otp in the response — the service controls whether it
+    // returns one (always in dev, always for email delivery confirmation).
+    // The client uses it to pre-fill the OTP field in development/testing.
+    const data = { userId: result.userId, email: result.email, otp: result.otp };
 
     sendSuccess(res, {
         statusCode: HTTP.CREATED,
