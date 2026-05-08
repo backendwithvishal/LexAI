@@ -52,7 +52,7 @@ export async function register(req, res) {
 
     const result = await registerUser(req.body);
 
-    const data = { userId: result.userId, email: result.email, otp: result.otp };
+    const data = { userId: result.userId, email: result.email };
 
     sendSuccess(res, {
         statusCode: HTTP.CREATED,
