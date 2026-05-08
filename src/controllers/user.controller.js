@@ -28,3 +28,12 @@ export async function getUserById(req, res) {
     const user = await userService.getUserById(req.params.id);
     sendSuccess(res, { data: { user } });
 }
+
+/** PATCH /users/:id/role — change a user's role (admin only, cannot change own role) */
+export async function changeUserRole(req, res) {
+    const user = await userService.changeUserRole(req.params.id, req.body.role, req.user.userId);
+    sendSuccess(res, {
+        message: `User role updated to '${req.body.role}' successfully.`,
+        data: { userId: user._id, role: user.role },
+    });
+}

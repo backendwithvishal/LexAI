@@ -10,7 +10,9 @@
  */
 
 import User from '../models/User.model.js';
+import Organization from '../models/Organization.model.js';
 import { getRedisClient } from '../config/redis.js';
+import { REDIS_KEYS } from '../constants/redisKeys.js';
 import { getCurrentMonthKey, getQuotaResetDate } from '../utils/dateHelper.js';
 import { getPlanLimits } from '../constants/plans.js';
 import AppError from '../utils/AppError.js';
@@ -86,4 +88,44 @@ export async function getUserById(userId) {
         throw new AppError('User not found.', 404, 'NOT_FOUND');
     }
     return user;
+}
+
+/**
+ * Change a user's role (admin only).
+ *
+ * Keeps the User document, the org's members array, and the Redis role
+ * cache all in sync — same pattern as org.service.changeMemberRole.
+ *
+ * @param {string} targetUserId  - ID of the user whose role is being changed
+ * @param {string} newRole       - The new role to assign
+ * @param {string} requesterId   - ID of the admin making the request
+ */
+export async function changeUserRole(targetUserId, newRole, requesterId) {
+    // Prevent admins from changing their own role
+    if (requesterId.toString() === targetUserId.toString()) {
+        throw new AppError('You cannot change your own role.', 400, 'SELF_ROLE_CHANGE');
+    }
+
+    const target = await User.findById(targetUserId);
+    if (!target) {
+        throw new AppError('User not found.', 404, 'NOT_FOUND');
+    }
+
+    // Update the role on the User document
+    target.role = newRole;
+    await target.save();
+
+    // Keep the org's members array in sync if the user belongs to an org
+    if (target.organization) {
+        await Organization.updateOne(
+            { _id: target.organization, 'members.userId': targetUserId },
+            { $set: { 'members.$.role': newRole } }
+        );
+    }
+
+    // Invalidate the Redis role cache so the change takes effect immediately
+    const redis = getRedisClient();
+    await redis.del(REDIS_KEYS.userRole(targetUserId.toString()));
+
+    return target;
 }

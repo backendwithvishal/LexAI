@@ -27,5 +27,7 @@ router.get('/me', authenticate, asyncWrapper(userController.getProfile));
 router.patch('/me', authenticate, validate(userValidator.updateProfile), asyncWrapper(userController.updateProfile));
 // Admin-only: look up any user by ID
 router.get('/:id', authenticate, authorize('admin'), asyncWrapper(userController.getUserById));
+// Admin-only: change a user's role (cannot change own role)
+router.patch('/:id/role', authenticate, authorize('admin'), validate(userValidator.updateUserRole), asyncWrapper(userController.changeUserRole));
 
 export default router;
