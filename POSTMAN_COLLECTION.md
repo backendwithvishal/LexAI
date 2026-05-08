@@ -311,6 +311,49 @@ Authorization: Bearer {{admin_token}}
 
 ---
 
+### PATCH — Change User Role (Admin only)
+
+```
+PATCH {{base_url}}/users/{{target_user_id}}/role
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+```
+```json
+{ "role": "manager" }
+```
+- `role` — required, one of: `admin`, `manager`, `viewer`
+- Cannot change your own role (`SELF_ROLE_CHANGE` error)
+- Syncs role across User document, org members array, and Redis cache immediately
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "message": "User role updated to 'manager' successfully.",
+  "data": { "userId": "65f1a2b3c4d5e6f7a8b9c0d1", "role": "manager" }
+}
+```
+
+**Error — Self role change (400):**
+```json
+{
+  "success": false,
+  "code": "SELF_ROLE_CHANGE",
+  "message": "You cannot change your own role."
+}
+```
+
+**Error — Non-admin attempt (403):**
+```json
+{
+  "success": false,
+  "code": "FORBIDDEN",
+  "message": "Access denied. Required roles: admin. Your role: viewer."
+}
+```
+
+---
+
 ## 4. Organizations — `/api/v1/orgs`
 
 ### POST — Create Organization (Protected)
