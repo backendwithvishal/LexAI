@@ -1,4 +1,4 @@
-name: CI/CD
+name: LexAI CI
 
 on:
   push:
@@ -6,10 +6,108 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint-and-test:
-    name: Lint & Test
+  # ─── Lint ──────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  # ─── Security Audit ────────────────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (high severity only)
+        run: npm audit --audit-level=high
+
+  # ─── Unit Tests ────────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      PORT: 3100
+      API_VERSION: v1
+      # MongoDB — use local instance started by service
+      MONGO_URI: mongodb://127.0.0.1:27017/lexai_test
+      # Redis — use local instance started by service
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      # RabbitMQ — use local instance
+      RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672
+      ANALYSIS_QUEUE: lexai.analysis.queue
+      ALERT_QUEUE: lexai.alert.queue
+      DLX_EXCHANGE: lexai.dlx
+      # PASETO — use a test secret (never use in production)
+      PASETO_LOCAL_SECRET: "ci-test-secret-key-32chars-minimum-length-ok"
+      PASETO_ACCESS_EXPIRY: 15m
+      PASETO_REFRESH_EXPIRY: 7d
+      PASETO_REFRESH_COOKIE_MAX_AGE_MS: 604800000
+      # AI — skip real AI in tests
+      AI_PROVIDER: openrouter
+      OPENROUTER_API_KEY: ""
+      GROQ_API_KEY: ""
+      AI_PRIMARY_MODEL: "meta-llama/llama-3.1-8b-instruct:free"
+      AI_FALLBACK_MODEL: "mistralai/mistral-7b-instruct:free"
+      AI_DIFF_MODEL: "mistralai/mistral-7b-instruct:free"
+      AI_REQUEST_TIMEOUT_MS: 60000
+      # Rate limiting
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX: 1000
+      # File upload
+      MAX_FILE_SIZE_MB: 5
+      ALLOWED_MIME_TYPES: "application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+      # CORS
+      ALLOWED_ORIGINS: "http://localhost:3000"
+      # Email — disabled in test
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_SECURE: "false"
+      SMTP_USER: "test@example.com"
+      SMTP_PASS: "test-password"
+      EMAIL_FROM: "test@example.com"
+      MAIL_USER: ""
+      MAIL_PASS: ""
+      # Admin
+      ADMIN_EMAIL: "admin@example.com"
+      ADMIN_PASSWORD: "TestAdmin@123"
+      # TTLs
+      PASSWORD_RESET_EXPIRY: 3600
+      OTP_EXPIRY: 600
+      EMAIL_VERIFICATION_EXPIRY: 600
+      # External APIs
+      REST_COUNTRIES_URL: "https://restcountries.com/v3.1"
+      WORLD_TIME_API_URL: "https://worldtimeapi.org/api"
 
     services:
       mongodb:
@@ -17,7 +115,7 @@ jobs:
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --eval \"db.adminCommand('ping')\""
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -33,8 +131,7 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,79 +142,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Run tests
+      - name: Run unit tests
         run: npm run test:run
-        env:
-          NODE_ENV: test
-          MONGO_URI: mongodb://localhost:27017/lexai_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          REDIS_PASSWORD: ''
-          PASETO_LOCAL_SECRET: test-secret-that-is-at-least-32-characters-long
-          PASETO_ACCESS_EXPIRY: 15m
-          PASETO_REFRESH_EXPIRY: 7d
-          PASETO_REFRESH_COOKIE_MAX_AGE_MS: 604800000
-          RABBITMQ_URL: amqp://guest:guest@localhost:5672
-          ANALYSIS_QUEUE: lexai.analysis.queue
-          ALERT_QUEUE: lexai.alert.queue
-          DLX_EXCHANGE: lexai.dlx
-          OPENROUTER_API_KEY: test-key
-          OPENROUTER_BASE_URL: https://openrouter.ai/api/v1
-          AI_PRIMARY_MODEL: meta-llama/llama-3.1-8b-instruct:free
-          AI_FALLBACK_MODEL: mistralai/mistral-7b-instruct:free
 
-      - name: Upload coverage
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage-report
           path: coverage/
+          retention-days: 7
 
-  docker-build:
+  # ─── Build Check ───────────────────────────────────────────────────────────
+  build:
     name: Docker Build Check
     runs-on: ubuntu-latest
-    needs: lint-and-test
-
+    needs: [lint, test]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Build API image
-        run: docker build --target production -f Dockerfile .
+      - name: Build Docker image (API)
+        run: docker build -t lexai-api:ci .
 
-      - name: Build Worker image
-        run: docker build --target production -f Dockerfile.worker .
-
-  deploy:
-    name: Deploy to Render
-    runs-on: ubuntu-latest
-    needs: docker-build
-    # Only deploy on pushes to main (not on PRs or develop)
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Deploy API service
-        run: |
-          curl --silent --show-error --fail \
-            -X POST \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            "https://api.render.com/v1/services/${{ secrets.RENDER_API_SERVICE_ID }}/deploys" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache": false}'
-
-      - name: Deploy Worker service
-        run: |
-          curl --silent --show-error --fail \
-            -X POST \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            "https://api.render.com/v1/services/${{ secrets.RENDER_WORKER_SERVICE_ID }}/deploys" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache": false}'
-
-      - name: Deployment summary
-        run: |
-          echo "✅ Deploy triggered for API and Worker on Render."
-          echo "Monitor at: https://dashboard.render.com"
+      - name: Build Docker image (Worker)
+        run: docker build -f Dockerfile.worker -t lexai-worker:ci .

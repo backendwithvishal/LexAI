@@ -134,11 +134,17 @@ const env = Object.freeze(parsed.data);
 // Ensure at least one SMTP credential pair is configured so emails don't
 // silently fail at runtime. SMTP_USER/SMTP_PASS are preferred; MAIL_USER/MAIL_PASS
 // are accepted as legacy aliases.
+// In development, missing email config is only a warning — OTPs will log to console.
+// In production, missing email config is a fatal error.
 const emailUser = parsed.data.SMTP_USER || parsed.data.MAIL_USER;
 const emailPass = parsed.data.SMTP_PASS || parsed.data.MAIL_PASS;
 if (!emailUser || !emailPass) {
-  console.error('❌ Email configuration missing: set SMTP_USER and SMTP_PASS (or MAIL_USER and MAIL_PASS) in your .env file.');
-  process.exit(1);
+  if (parsed.data.NODE_ENV === 'production') {
+    console.error('❌ Email configuration missing: set SMTP_USER and SMTP_PASS (or MAIL_USER and MAIL_PASS) in your .env file.');
+    process.exit(1);
+  } else {
+    console.warn('⚠️  Email credentials not set. Emails will not be sent in development mode. OTPs will be returned in the API response.');
+  }
 }
 
 // ─── Production Safety Checks ─────────────────────────────────────────────

@@ -63,6 +63,20 @@ export async function initEmailTransporter() {
     logger.debug('Email transporter already initialised — skipping');
     return;
   }
+
+  const emailUser = env.SMTP_USER || env.MAIL_USER;
+  const emailPass = env.SMTP_PASS || env.MAIL_PASS;
+
+  // In dev with no credentials, skip initialization entirely — emails will be logged
+  if (!emailUser || !emailPass) {
+    if (env.NODE_ENV !== 'production') {
+      logger.warn('Email transporter NOT initialised — no SMTP credentials. Set SMTP_USER + SMTP_PASS in .env to send real emails.');
+      return;
+    }
+    // Production guard (should already be caught by env.js, but belt-and-suspenders)
+    throw new Error('SMTP credentials are required in production');
+  }
+
   _initTransporter();
 
   // Verify the SMTP connection at startup so we get a clear error immediately
@@ -79,9 +93,11 @@ export async function initEmailTransporter() {
   }
 }
 
+
 /**
  * The core send function used by every email helper below.
  * Lazily initializes the transporter on first call.
+ * In development with no SMTP credentials, logs the email instead of crashing.
  *
  * @param {object} options
  * @param {string} options.to      - Recipient email address
@@ -90,6 +106,20 @@ export async function initEmailTransporter() {
  * @param {string} options.text    - Plain-text fallback (shown by clients that block HTML)
  */
 async function _sendEmail({ to, subject, html, text }) {
+  const emailUser = env.SMTP_USER || env.MAIL_USER;
+  const emailPass = env.SMTP_PASS || env.MAIL_PASS;
+
+  // In dev with no credentials, log the email content instead of trying to send
+  if (!emailUser || !emailPass) {
+    if (env.NODE_ENV !== 'production') {
+      logger.warn({ to, subject }, '[DEV] Email NOT sent — no SMTP credentials configured. Set SMTP_USER + SMTP_PASS in .env to enable email.');
+      logger.debug({ to, subject, text }, '[DEV] Email content (text version)');
+      return { messageId: 'dev-mode-no-smtp', skipped: true };
+    }
+    // Production should never reach here — env.js already exits if missing
+    throw new Error('SMTP credentials not configured');
+  }
+
   if (!transporter) _initTransporter();
 
   try {
@@ -111,6 +141,7 @@ async function _sendEmail({ to, subject, html, text }) {
     throw err;
   }
 }
+
 
 /**
  * Returns the first allowed origin (e.g. "http://localhost:3000") to use as
